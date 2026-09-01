@@ -60,10 +60,13 @@ export default function ServiceDetail() {
     if (!service) return;
     if (!ensureEmail("book")) return;
 
+    const email = savedEmail || user?.email || "";
+    const name = user?.name || email.split("@")[0] || "User";
+
     createBooking({
-      userId: getUserId(),
-      userEmail: user!.email!,
-      userName: user!.name || user!.email!.split("@")[0],
+      userId: email,
+      userEmail: email,
+      userName: name,
       serviceId: service.slug,
       serviceName: service.name,
       date: bookDate,
@@ -98,10 +101,13 @@ export default function ServiceDetail() {
     if (!messageText.trim() || !slug) return;
     if (!ensureEmail("message")) return;
 
+    const email = savedEmail || user?.email || "";
+    const name = user?.name || email.split("@")[0] || "User";
+
     sendMessage({
-      userId: getUserId(),
-      userEmail: user!.email!,
-      userName: user!.name || user!.email!.split("@")[0],
+      userId: email,
+      userEmail: email,
+      userName: name,
       serviceId: slug,
       content: messageText.trim(),
     });
