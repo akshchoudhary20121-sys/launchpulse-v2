@@ -169,6 +169,8 @@ function setToStorage<T>(key: string, value: T): void {
 }
 
 // ─── Admin ───
+export const ADMIN_EMAIL = "launchpulsesite@gmail.com";
+
 export function isAdmin(): boolean {
   return getFromStorage<boolean>(ADMIN_KEY, false);
 }
@@ -177,8 +179,8 @@ export function setAdmin(isAdminUser: boolean): void {
   setToStorage(ADMIN_KEY, isAdminUser);
 }
 
-export function getAdminCredentials(): { email: string; password: string } {
-  return { email: "admin@launchpulse.studio", password: "admin123" };
+export function isAdminEmail(email: string): boolean {
+  return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 }
 
 // ─── Services ───
@@ -349,7 +351,7 @@ export function getActivityFeed(): Activity[] {
       id: `reply-${r._id}`,
       type: "reply",
       description: `Reply to message: ${r.content.slice(0, 50)}...`,
-      userEmail: r.sender === "admin" ? "admin@launchpulse.studio" : "user",
+      userEmail: r.sender === "admin" ? ADMIN_EMAIL : "user",
       createdAt: r.createdAt,
     });
   });

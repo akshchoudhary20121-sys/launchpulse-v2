@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
-  LayoutDashboard, Calendar, MessageSquare, Users, Activity as ActivityIcon,
-  CheckCircle, XCircle, Clock, Send, ArrowRight, LogOut, Eye,
+  LayoutDashboard, Calendar, MessageSquare, Activity as ActivityIcon,
+  CheckCircle, XCircle, Clock, Send, LogOut,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
+import { useAuth } from "@/hooks/use-auth";
 import {
   getAllBookings,
   getAllMessages,
@@ -14,7 +15,9 @@ import {
   sendReply,
   getActivityFeed,
   isAdmin,
+  isAdminEmail,
   setAdmin,
+  ADMIN_EMAIL,
   type Booking,
   type Message,
   type Reply,
@@ -45,10 +48,8 @@ const statusIcons: Record<string, typeof Clock> = {
 };
 
 export default function Admin() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,21 +58,31 @@ export default function Admin() {
   const [replyText, setReplyText] = useState("");
   const [replies, setReplies] = useState<Reply[]>([]);
 
-  // Check if already logged in as admin
-  useEffect(() => {
-    if (isAdmin()) {
-      setIsAuthenticated(true);
-    }
-  }, []);
+  // Check if user is admin
+  const isUserAdmin = user?.email ? isAdminEmail(user.email) : false;
 
-  // Load data when authenticated
+  // Redirect if not admin
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isUserAdmin && user) {
+      navigate("/dashboard");
+    }
+  }, [isUserAdmin, user, navigate]);
+
+  // Set admin flag
+  useEffect(() => {
+    if (isUserAdmin) {
+      setAdmin(true);
+    }
+  }, [isUserAdmin]);
+
+  // Load data when admin
+  useEffect(() => {
+    if (isUserAdmin) {
       setBookings(getAllBookings());
       setMessages(getAllMessages());
       setActivities(getActivityFeed());
     }
-  }, [isAuthenticated]);
+  }, [isUserAdmin]);
 
   // Load replies when message selected
   useEffect(() => {
@@ -80,22 +91,10 @@ export default function Admin() {
     }
   }, [selectedMessage]);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email === "admin@launchpulse.studio" && password === "admin123") {
-      setAdmin(true);
-      setIsAuthenticated(true);
-      setLoginError("");
-    } else {
-      setLoginError("Invalid credentials");
-    }
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setAdmin(false);
-    setIsAuthenticated(false);
-    setEmail("");
-    setPassword("");
+    await signOut();
+    navigate("/");
   };
 
   const handleStatusChange = (bookingId: string, newStatus: Booking["status"]) => {
@@ -114,65 +113,13 @@ export default function Admin() {
     setActivities(getActivityFeed());
   };
 
-  // Login screen
-  if (!isAuthenticated) {
+  // Show loading or redirect if not admin
+  if (!isUserAdmin) {
     return (
       <div className="noise-overlay min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-500/[0.06] blur-[120px]" />
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">Loading admin dashboard...</p>
         </div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 w-full max-w-md mx-4"
-        >
-          <div className="rounded-2xl border border-border/40 bg-card/40 backdrop-blur-xl p-8 shadow-2xl">
-            <div className="mb-6 text-center">
-              <img src={logo} alt="Logo" className="mx-auto mb-4 h-12 w-12" />
-              <h1 className="text-xl font-bold">Admin Portal</h1>
-              <p className="text-sm text-muted-foreground">LaunchPulse.Studio</p>
-            </div>
-            
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@launchpulse.studio"
-                  className="w-full rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                  required
-                />
-              </div>
-              {loginError && <p className="text-xs text-red-500">{loginError}</p>}
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110"
-              >
-                Sign In
-              </button>
-            </form>
-            
-            <div className="mt-6 text-center">
-              <Link to="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                ← Back to website
-              </Link>
-            </div>
-          </div>
-        </motion.div>
       </div>
     );
   }
@@ -192,6 +139,7 @@ export default function Admin() {
             <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               View Site
             </Link>
+            <span className="text-xs text-muted-foreground">{user?.email}</span>
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"

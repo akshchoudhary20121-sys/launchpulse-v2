@@ -3,7 +3,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import logo from "@/assets/logo.svg";
 import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { isAdminEmail, setAdmin } from "@/lib/store";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -43,7 +43,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      navigate(redirect);
+      // Check if admin and redirect accordingly
+      const currentUser = JSON.parse(localStorage.getItem("launchpulse_user") || "{}");
+      if (currentUser.email && isAdminEmail(currentUser.email)) {
+        setAdmin(true);
+        navigate("/admin");
+      } else {
+        navigate(redirect);
+      }
     }
   }, [authLoading, isAuthenticated, navigate, redirect]);
 
@@ -53,7 +60,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       await signIn(email, "local-password");
-      navigate(redirect);
+      
+      // Check if this is admin email
+      if (isAdminEmail(email)) {
+        setAdmin(true);
+        navigate("/admin");
+      } else {
+        navigate(redirect);
+      }
     } catch (error) {
       console.error("Sign-in error:", error);
       setError(
@@ -161,6 +175,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   Continue as Guest
                 </Button>
               </div>
+              
+              <p className="mt-4 text-[10px] text-muted-foreground text-center">
+                Admin? Use your admin email to access the dashboard
+              </p>
             </CardContent>
           </form>
 
