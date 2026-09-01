@@ -13,6 +13,8 @@ import { Link } from "react-router";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
+const DISCORD_URL = "https://discord.gg/yourserver";
+
 type Tab = "overview" | "bookings" | "messages" | "settings";
 
 const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -100,9 +102,9 @@ export default function Dashboard() {
             <p className="text-xs font-medium uppercase tracking-widest text-cyan-400">Dashboard</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">Welcome back{user?.name ? `, ${user.name}` : ""}</h1>
           </div>
-          <Link to="/catalog" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
-            Browse Catalog <ArrowRight className="h-4 w-4" />
-          </Link>
+          <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+            Get a Quote <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
 
         {/* Tabs */}

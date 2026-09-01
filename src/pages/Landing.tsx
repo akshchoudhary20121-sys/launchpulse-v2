@@ -28,6 +28,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { Link } from "react-router";
+
+const DISCORD_URL = "https://discord.gg/yourserver";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -125,7 +128,7 @@ export default function Landing() {
 
           <div className="hidden items-center gap-3 sm:flex">
             <a href="/auth" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</a>
-            <a href="/auth" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
               Get Started <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -146,8 +149,8 @@ export default function Landing() {
               </div>
               <div className="mt-auto px-4 pb-6">
                 <SheetClose asChild>
-                  <a href="/auth" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:brightness-110">
-                    Get Started <ArrowRight className="h-4 w-4" />
+                  <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:brightness-110">
+                    Get a Quote <ArrowRight className="h-4 w-4" />
                   </a>
                 </SheetClose>
               </div>
@@ -240,15 +243,17 @@ export default function Landing() {
           </motion.div>
           <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service, i) => (
-              <motion.div key={service.title} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={i} className="gradient-border group relative rounded-2xl border border-border/40 bg-card/30 p-7 backdrop-blur-sm transition-all duration-300 hover:bg-card/60 hover:shadow-xl hover:shadow-purple-500/[0.04]">
-                <div className={`mb-5 inline-flex size-12 items-center justify-center rounded-xl bg-gradient-to-br ${service.bgGradient}`}>
-                  <service.icon className="h-5 w-5 text-foreground/80" />
-                </div>
-                <h3 className="text-base font-semibold">{service.title}</h3>
-                <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
-                <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-cyan-400 opacity-0 transition-all duration-300 group-hover:opacity-100">
-                  View in catalog <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                </div>
+              <motion.div key={service.title} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={i} className="">
+                <Link to="/catalog" className="gradient-border group flex h-full flex-col rounded-2xl border border-border/40 bg-card/30 p-7 backdrop-blur-sm transition-all duration-300 hover:bg-card/60 hover:shadow-xl hover:shadow-purple-500/[0.04]">
+                  <div className={`mb-5 inline-flex size-12 items-center justify-center rounded-xl bg-gradient-to-br ${service.bgGradient}`}>
+                    <service.icon className="h-5 w-5 text-foreground/80" />
+                  </div>
+                  <h3 className="text-base font-semibold">{service.title}</h3>
+                  <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
+                  <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-cyan-400 opacity-0 transition-all duration-300 group-hover:opacity-100">
+                    View details <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                </Link>
               </motion.div>
             ))}
           </div>
@@ -285,8 +290,8 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <a href="/auth" className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${plan.highlighted ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:brightness-110" : "border border-border/50 bg-card/20 text-foreground hover:border-border/80 hover:bg-card/50"}`}>
-                  Get Started <ArrowRight className="h-4 w-4" />
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${plan.highlighted ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:brightness-110" : "border border-border/50 bg-card/20 text-foreground hover:border-border/80 hover:bg-card/50"}`}>
+                  Get a Quote <ArrowRight className="h-4 w-4" />
                 </a>
               </motion.div>
             ))}
@@ -356,12 +361,12 @@ export default function Landing() {
                 <motion.h2 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight sm:text-4xl">Ready to ship something?</motion.h2>
                 <motion.p variants={fadeUp} custom={2} className="mx-auto mt-4 max-w-md text-muted-foreground">Sign up, pick a service from the catalog, and book your first session. It takes less than two minutes.</motion.p>
                 <motion.div variants={fadeUp} custom={3} className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                  <a href="/auth" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110">
-                    <Terminal className="h-4 w-4" /> Create Account
+                  <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+                    <MessageSquare className="h-4 w-4" /> Get a Quote on Discord
                   </a>
-                  <a href="/catalog" className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/20 px-8 py-3.5 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border/80 hover:text-foreground hover:bg-card/40">
+                  <Link to="/catalog" className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/20 px-8 py-3.5 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border/80 hover:text-foreground hover:bg-card/40">
                     Browse Catalog <ArrowRight className="h-4 w-4" />
-                  </a>
+                  </Link>
                 </motion.div>
               </div>
             </motion.div>

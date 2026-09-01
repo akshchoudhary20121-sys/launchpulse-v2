@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
+const DISCORD_URL = "https://discord.gg/yourserver";
+
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
   const service = useQuery(api.services.getBySlug, slug ? { slug } : "skip");
@@ -89,7 +91,7 @@ export default function ServiceDetail() {
             <Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Dashboard</Link>
           </div>
           <div className="hidden sm:block">
-            <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">Dashboard</Link>
+            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">Get a Quote <MessageSquare className="h-4 w-4" /></a>
           </div>
           <Sheet>
             <SheetTrigger asChild>
@@ -169,7 +171,7 @@ export default function ServiceDetail() {
                   </button>
                 </form>
               ) : (
-                <Link to="/auth" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">Sign in to leave a message</Link>
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">Get a quote on Discord <MessageSquare className="h-3 w-3" /></a>
               )}
             </motion.div>
           </div>
@@ -246,9 +248,9 @@ export default function ServiceDetail() {
                   </form>
                 )
               ) : (
-                <Link to="/auth" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
-                  Sign in to Book
-                </Link>
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+                  Get a Quote on Discord <MessageSquare className="h-4 w-4" />
+                </a>
               )}
             </motion.div>
           </div>

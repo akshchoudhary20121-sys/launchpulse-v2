@@ -8,6 +8,8 @@ import { Link } from "react-router";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
+const DISCORD_URL = "https://discord.gg/yourserver";
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
@@ -49,7 +51,7 @@ export default function Catalog() {
           </div>
           <div className="hidden items-center gap-3 sm:flex">
             <Link to="/auth" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</Link>
-            <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">Dashboard <ArrowRight className="h-4 w-4" /></Link>
+            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">Get a Quote <ArrowRight className="h-4 w-4" /></a>
           </div>
           <Sheet>
             <SheetTrigger asChild>
