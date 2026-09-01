@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router";
 import {
   LayoutDashboard, Calendar, MessageSquare, Activity as ActivityIcon,
-  CheckCircle, XCircle, Clock, Send, LogOut,
+  CheckCircle, XCircle, Clock, Send, LogOut, IndianRupee, Users,
+  TrendingUp, RefreshCw, Eye, Zap, Star, ArrowUpRight,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,22 +15,22 @@ import {
   getReplies,
   sendReply,
   getActivityFeed,
-  isAdmin,
   isAdminEmail,
   setAdmin,
-  ADMIN_EMAIL,
+  getServices,
   type Booking,
   type Message,
   type Reply,
   type Activity as ActivityFeedItem,
 } from "@/lib/store";
 
-type Tab = "overview" | "bookings" | "messages" | "activity";
+type Tab = "overview" | "bookings" | "messages" | "activity" | "customers";
 
 const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "bookings", label: "Bookings", icon: Calendar },
   { id: "messages", label: "Messages", icon: MessageSquare },
+  { id: "customers", label: "Customers", icon: Users },
   { id: "activity", label: "Activity", icon: ActivityIcon },
 ];
 
@@ -57,9 +58,30 @@ export default function Admin() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replies, setReplies] = useState<Reply[]>([]);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Check if user is admin
   const isUserAdmin = user?.email ? isAdminEmail(user.email) : false;
+
+  // Refresh data function
+  const refreshData = useCallback(() => {
+    setBookings(getAllBookings());
+    setMessages(getAllMessages());
+    setActivities(getActivityFeed());
+    setLastRefresh(new Date());
+  }, []);
+
+  // Auto-refresh every 3 seconds
+  useEffect(() => {
+    if (!isUserAdmin) return;
+    
+    const interval = setInterval(() => {
+      refreshData();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isUserAdmin, refreshData]);
 
   // Redirect if not admin
   useEffect(() => {
@@ -72,17 +94,9 @@ export default function Admin() {
   useEffect(() => {
     if (isUserAdmin) {
       setAdmin(true);
+      refreshData();
     }
-  }, [isUserAdmin]);
-
-  // Load data when admin
-  useEffect(() => {
-    if (isUserAdmin) {
-      setBookings(getAllBookings());
-      setMessages(getAllMessages());
-      setActivities(getActivityFeed());
-    }
-  }, [isUserAdmin]);
+  }, [isUserAdmin, refreshData]);
 
   // Load replies when message selected
   useEffect(() => {
@@ -97,10 +111,15 @@ export default function Admin() {
     navigate("/");
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    refreshData();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
   const handleStatusChange = (bookingId: string, newStatus: Booking["status"]) => {
     updateBookingStatus(bookingId, newStatus);
-    setBookings(getAllBookings());
-    setActivities(getActivityFeed());
+    refreshData();
   };
 
   const handleSendReply = (e: React.FormEvent) => {
@@ -110,8 +129,21 @@ export default function Admin() {
     sendReply(selectedMessage._id, "admin", replyText.trim());
     setReplyText("");
     setReplies(getReplies(selectedMessage._id));
-    setActivities(getActivityFeed());
+    refreshData();
   };
+
+  // Calculate stats
+  const totalRevenue = bookings
+    .filter((b) => b.status === "completed" || b.status === "confirmed")
+    .reduce((sum, b) => {
+      const service = getServices().find((s) => s.slug === b.serviceId);
+      return sum + (service?.price || 0);
+    }, 0);
+
+  const uniqueCustomers = new Set(bookings.map((b) => b.userEmail)).size;
+  const pendingBookings = bookings.filter((b) => b.status === "pending");
+  const confirmedBookings = bookings.filter((b) => b.status === "confirmed");
+  const completedBookings = bookings.filter((b) => b.status === "completed");
 
   // Show loading or redirect if not admin
   if (!isUserAdmin) {
@@ -136,6 +168,16 @@ export default function Admin() {
             <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">Dashboard</span>
           </div>
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="size-2 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </div>
+            <button
+              onClick={handleRefresh}
+              className={`inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:bg-card/50 ${isRefreshing ? "animate-spin" : ""}`}
+            >
+              <RefreshCw className="h-3 w-3" /> Refresh
+            </button>
             <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               View Site
             </Link>
@@ -152,9 +194,73 @@ export default function Admin() {
 
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage bookings, messages, and customer activity</p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage bookings, messages, and customer activity • Last updated: {lastRefresh.toLocaleTimeString()}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/catalog"
+              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"
+            >
+              <Eye className="h-4 w-4" /> View Site
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110"
+            >
+              <Zap className="h-4 w-4" /> Quick Actions
+            </Link>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <IndianRupee className="h-4 w-4 text-green-400" />
+            </div>
+            <p className="mt-1 text-2xl font-bold text-green-400">₹{totalRevenue.toLocaleString()}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">From {completedBookings.length + confirmedBookings.length} orders</p>
+          </div>
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Total Bookings</p>
+              <Calendar className="h-4 w-4 text-cyan-400" />
+            </div>
+            <p className="mt-1 text-2xl font-bold gradient-text">{bookings.length}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{pendingBookings.length} pending</p>
+          </div>
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Customers</p>
+              <Users className="h-4 w-4 text-purple-400" />
+            </div>
+            <p className="mt-1 text-2xl font-bold gradient-text">{uniqueCustomers}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Unique emails</p>
+          </div>
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Messages</p>
+              <MessageSquare className="h-4 w-4 text-pink-400" />
+            </div>
+            <p className="mt-1 text-2xl font-bold gradient-text">{messages.length}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Active conversations</p>
+          </div>
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Conversion</p>
+              <TrendingUp className="h-4 w-4 text-yellow-400" />
+            </div>
+            <p className="mt-1 text-2xl font-bold text-yellow-400">
+              {bookings.length > 0 ? Math.round((completedBookings.length / bookings.length) * 100) : 0}%
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Completion rate</p>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -192,28 +298,58 @@ export default function Admin() {
             {/* Overview */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Quick Actions */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Link to="/catalog" className="gradient-border group flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-5 backdrop-blur-sm transition-all hover:bg-card/50">
+                    <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
+                      <Eye className="h-6 w-6 text-cyan-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">View Catalog</p>
+                      <p className="text-xs text-muted-foreground">See what customers see</p>
+                    </div>
+                    <ArrowUpRight className="h-5 w-5 text-muted-foreground transition-all group-hover:text-cyan-400" />
+                  </Link>
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
-                    <p className="text-xs text-muted-foreground">Total Bookings</p>
-                    <p className="mt-1 text-2xl font-bold gradient-text">{bookings.length}</p>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-yellow-500/10">
+                        <Clock className="h-5 w-5 text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">Pending Actions</p>
+                        <p className="text-xs text-muted-foreground">{pendingBookings.length} bookings need attention</p>
+                      </div>
+                    </div>
+                    {pendingBookings.length > 0 && (
+                      <button onClick={() => setActiveTab("bookings")} className="w-full rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-medium text-yellow-400 transition-all hover:bg-yellow-500/20">
+                        Review Now →
+                      </button>
+                    )}
                   </div>
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
-                    <p className="text-xs text-muted-foreground">Pending</p>
-                    <p className="mt-1 text-2xl font-bold text-yellow-400">{bookings.filter((b) => b.status === "pending").length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
-                    <p className="text-xs text-muted-foreground">Messages</p>
-                    <p className="mt-1 text-2xl font-bold gradient-text">{messages.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
-                    <p className="text-xs text-muted-foreground">Activity</p>
-                    <p className="mt-1 text-2xl font-bold gradient-text">{activities.length}</p>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/10">
+                        <MessageSquare className="h-5 w-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">Unread Messages</p>
+                        <p className="text-xs text-muted-foreground">{messages.length} total messages</p>
+                      </div>
+                    </div>
+                    {messages.length > 0 && (
+                      <button onClick={() => setActiveTab("messages")} className="w-full rounded-lg bg-purple-500/10 px-3 py-2 text-xs font-medium text-purple-400 transition-all hover:bg-purple-500/20">
+                        View Messages →
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Recent Activity */}
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold">Recent Activity</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold">Recent Activity</h2>
+                    <button onClick={() => setActiveTab("activity")} className="text-xs text-cyan-400 hover:text-cyan-300">View all →</button>
+                  </div>
                   {activities.length === 0 ? (
                     <div className="rounded-2xl border border-border/40 bg-card/30 p-8 text-center">
                       <ActivityIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -222,16 +358,16 @@ export default function Admin() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {activities.slice(0, 10).map((activity) => (
+                      {activities.slice(0, 5).map((activity) => (
                         <div key={activity.id} className="flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-4 transition-all hover:bg-card/40">
-                          <div className={`flex size-9 items-center justify-center rounded-lg ${
+                          <div className={`flex size-10 items-center justify-center rounded-xl ${
                             activity.type === "booking" ? "bg-cyan-500/10" :
                             activity.type === "message" ? "bg-purple-500/10" :
                             "bg-green-500/10"
                           }`}>
-                            {activity.type === "booking" ? <Calendar className="h-4 w-4 text-cyan-400" /> :
-                             activity.type === "message" ? <MessageSquare className="h-4 w-4 text-purple-400" /> :
-                             <Send className="h-4 w-4 text-green-400" />}
+                            {activity.type === "booking" ? <Calendar className="h-5 w-5 text-cyan-400" /> :
+                             activity.type === "message" ? <MessageSquare className="h-5 w-5 text-purple-400" /> :
+                             <Send className="h-5 w-5 text-green-400" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{activity.description}</p>
@@ -242,13 +378,40 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+
+                {/* Top Services */}
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold">Top Services</h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {getServices().slice(0, 4).map((service) => {
+                      const serviceBookings = bookings.filter((b) => b.serviceId === service.slug);
+                      return (
+                        <div key={service._id} className="rounded-2xl border border-border/40 bg-card/30 p-4 transition-all hover:bg-card/40">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Star className="h-4 w-4 text-yellow-500" />
+                            <p className="text-sm font-medium truncate">{service.name}</p>
+                          </div>
+                          <p className="text-2xl font-bold gradient-text">{serviceBookings.length}</p>
+                          <p className="text-[10px] text-muted-foreground">bookings</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Bookings */}
             {activeTab === "bookings" && (
               <div>
-                <h2 className="mb-4 text-lg font-semibold">All Bookings</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">All Bookings</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {pendingBookings.length} pending • {confirmedBookings.length} confirmed • {completedBookings.length} completed
+                    </span>
+                  </div>
+                </div>
                 {bookings.length === 0 ? (
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
                     <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -259,6 +422,7 @@ export default function Admin() {
                   <div className="space-y-3">
                     {bookings.map((booking) => {
                       const StatusIcon = statusIcons[booking.status] ?? Clock;
+                      const service = getServices().find((s) => s.slug === booking.serviceId);
                       return (
                         <div key={booking._id} className="rounded-2xl border border-border/40 bg-card/30 p-5 transition-all hover:bg-card/40">
                           <div className="flex items-start gap-4">
@@ -278,8 +442,11 @@ export default function Admin() {
                               {booking.notes && (
                                 <p className="mt-2 text-xs text-muted-foreground bg-card/50 rounded-lg p-2">{booking.notes}</p>
                               )}
+                              {service && (
+                                <p className="mt-1 text-xs text-cyan-400">₹{service.price.toLocaleString()} • {service.priceUnit}</p>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-end gap-2">
                               <select
                                 value={booking.status}
                                 onChange={(e) => handleStatusChange(booking._id, e.target.value as Booking["status"])}
@@ -290,6 +457,9 @@ export default function Admin() {
                                 <option value="completed">Complete</option>
                                 <option value="cancelled">Cancel</option>
                               </select>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(booking.createdAt).toLocaleDateString()}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -325,7 +495,7 @@ export default function Admin() {
                           }`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
                               {msg.userName?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -348,9 +518,16 @@ export default function Admin() {
                   {selectedMessage ? (
                     <div className="flex flex-col h-full">
                       <div className="mb-4 pb-4 border-b border-border/30">
-                        <p className="font-medium">{selectedMessage.userName || "User"}</p>
-                        <p className="text-xs text-muted-foreground">{selectedMessage.userEmail}</p>
-                        <p className="text-xs text-muted-foreground">Service: {selectedMessage.serviceId}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-sm font-bold text-foreground/70">
+                            {selectedMessage.userName?.charAt(0).toUpperCase() || "U"}
+                          </div>
+                          <div>
+                            <p className="font-medium">{selectedMessage.userName || "User"}</p>
+                            <p className="text-xs text-muted-foreground">{selectedMessage.userEmail}</p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">Service: {selectedMessage.serviceId}</p>
                       </div>
                       
                       {/* Original message */}
@@ -361,6 +538,9 @@ export default function Admin() {
 
                       {/* Replies */}
                       <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-64">
+                        {replies.length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">No replies yet. Send the first reply below.</p>
+                        )}
                         {replies.map((reply) => (
                           <div
                             key={reply._id}
@@ -408,6 +588,56 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Customers */}
+            {activeTab === "customers" && (
+              <div>
+                <h2 className="mb-4 text-lg font-semibold">Customer List</h2>
+                {bookings.length === 0 ? (
+                  <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
+                    <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm font-medium">No customers yet</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Customer data will appear here when they book services.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {Array.from(new Set(bookings.map((b) => b.userEmail))).map((email) => {
+                      const customerBookings = bookings.filter((b) => b.userEmail === email);
+                      const customerName = customerBookings[0]?.userName || email.split("@")[0];
+                      const totalSpent = customerBookings.reduce((sum, b) => {
+                        const service = getServices().find((s) => s.slug === b.serviceId);
+                        return sum + (service?.price || 0);
+                      }, 0);
+                      
+                      return (
+                        <div key={email} className="rounded-2xl border border-border/40 bg-card/30 p-5 transition-all hover:bg-card/40">
+                          <div className="flex items-center gap-4">
+                            <div className="flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-lg font-bold text-foreground/70">
+                              {customerName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium">{customerName}</p>
+                              <p className="text-sm text-muted-foreground">{email}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold gradient-text">₹{totalSpent.toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground">{customerBookings.length} bookings</p>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {customerBookings.slice(0, 2).map((b) => (
+                                <span key={b._id} className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${statusColors[b.status]}`}>
+                                  {b.serviceName}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
