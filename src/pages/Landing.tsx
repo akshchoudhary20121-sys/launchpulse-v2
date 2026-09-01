@@ -16,8 +16,16 @@ import {
   Headphones,
   Send,
   Layers,
+  Menu,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -194,6 +202,8 @@ export default function Landing() {
               Nex<span className="gradient-text">Dev</span>
             </span>
           </a>
+
+          {/* Desktop nav */}
           <div className="hidden items-center gap-8 md:flex">
             <a href="#services" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               Services
@@ -205,13 +215,83 @@ export default function Landing() {
               Reviews
             </a>
           </div>
+
+          {/* Desktop CTA */}
           <a
             href="#contact"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110"
+            className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110 sm:inline-flex"
           >
             Get Started
             <ArrowRight className="h-4 w-4" />
           </a>
+
+          {/* Mobile hamburger */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex size-10 items-center justify-center rounded-xl border border-border/50 bg-card/30 text-muted-foreground transition-colors hover:text-foreground md:hidden"
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              className="w-72 border-border/40 bg-background/95 backdrop-blur-2xl"
+            >
+              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              <div className="flex flex-col gap-1 pt-12">
+                <SheetClose asChild>
+                  <a
+                    href="#services"
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground"
+                  >
+                    <Globe className="h-4 w-4" />
+                    Services
+                  </a>
+                </SheetClose>
+                <SheetClose asChild>
+                  <a
+                    href="#pricing"
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground"
+                  >
+                    <Layers className="h-4 w-4" />
+                    Pricing
+                  </a>
+                </SheetClose>
+                <SheetClose asChild>
+                  <a
+                    href="#testimonials"
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground"
+                  >
+                    <Star className="h-4 w-4" />
+                    Reviews
+                  </a>
+                </SheetClose>
+                <SheetClose asChild>
+                  <a
+                    href="#contact"
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Contact
+                  </a>
+                </SheetClose>
+              </div>
+              <div className="mt-auto px-4 pb-6">
+                <SheetClose asChild>
+                  <a
+                    href="#contact"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:brightness-110"
+                  >
+                    Get Started
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </SheetClose>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
 
