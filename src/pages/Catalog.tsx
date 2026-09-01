@@ -55,8 +55,16 @@ export default function Catalog() {
   // Auto-seed if catalog is empty
   useEffect(() => {
     if (services && services.length === 0 && !seeding) {
+      console.log("[Catalog] No services found, seeding database...");
       setSeeding(true);
-      seedMutation().finally(() => setSeeding(false));
+      seedMutation()
+        .then((result) => {
+          console.log("[Catalog] Seed result:", result);
+        })
+        .catch((err) => {
+          console.error("[Catalog] Seed failed:", err);
+        })
+        .finally(() => setSeeding(false));
     }
   }, [services, seedMutation, seeding]);
 
@@ -294,8 +302,24 @@ export default function Catalog() {
             </div>
             <p className="text-lg font-medium">No services found</p>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {search ? `No results for "${search}". Try a different keyword.` : "Try adjusting your filters or search terms."}
+              {search ? `No results for "${search}". Try a different keyword.` : "The catalog is empty. Let's set it up."}
             </p>
+            {!search && !selectedCategory && (
+              <button
+                onClick={() => {
+                  setSeeding(true);
+                  seedMutation()
+                    .then((r) => console.log("Manual seed:", r))
+                    .catch((e) => console.error("Manual seed error:", e))
+                    .finally(() => setSeeding(false));
+                }}
+                disabled={seeding}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {seeding ? "Seeding..." : "Seed Database"}
+              </button>
+            )}
             {(search || selectedCategory) && (
               <button onClick={() => { setSearch(""); setSelectedCategory(null); setPriceRange([0, 50000]); }} className="mt-4 text-sm text-cyan-400 hover:text-cyan-300">Clear all filters</button>
             )}
