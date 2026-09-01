@@ -1,4 +1,4 @@
-// Simple localStorage-based data store with cross-tab sync
+// Simple localStorage-based data store with cross-tab AND cross-iframe sync
 // No database needed — everything saves in the browser
 
 const SERVICES_KEY = "launchpulse_services";
@@ -7,7 +7,7 @@ const MESSAGES_KEY = "launchpulse_messages";
 const REPLIES_KEY = "launchpulse_replies";
 const ADMIN_KEY = "launchpulse_admin";
 
-// ─── Custom Event System for Same-Tab Updates ───
+// ─── Cross-iframe sync via BroadcastChannel + postMessage ───
 type StorageEventHandler = () => void;
 const listeners: Map<string, Set<StorageEventHandler>> = new Map();
 
@@ -18,6 +18,40 @@ function emitChange(key: string): void {
   }
 }
 
+// BroadcastChannel for cross-iframe sync (when supported)
+let bc: BroadcastChannel | null = null;
+try {
+  bc = new BroadcastChannel("launchpulse_sync");
+  bc.onmessage = (e) => {
+    if (e.data?.key) {
+      emitChange(e.data.key);
+    }
+  };
+} catch {
+  // BroadcastChannel not supported, fall back to postMessage
+}
+
+function broadcastChange(key: string): void {
+  // BroadcastChannel
+  try {
+    bc?.postMessage({ key });
+  } catch { /* ignore */ }
+  // postMessage to parent/children
+  try {
+    window.parent?.postMessage({ type: "launchpulse_sync", key }, "*");
+  } catch { /* ignore */ }
+  // Also listen for postMessage
+}
+
+// Listen for postMessage from other frames
+if (typeof window !== "undefined") {
+  window.addEventListener("message", (e) => {
+    if (e.data?.type === "launchpulse_sync" && e.data?.key) {
+      emitChange(e.data.key);
+    }
+  });
+}
+
 export function onStorageChange(key: string, callback: StorageEventHandler): () => void {
   if (!listeners.has(key)) {
     listeners.set(key, new Set());
@@ -26,15 +60,6 @@ export function onStorageChange(key: string, callback: StorageEventHandler): () 
   return () => {
     listeners.get(key)?.delete(callback);
   };
-}
-
-// Listen for storage events from other tabs
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (e) => {
-    if (e.key) {
-      emitChange(e.key);
-    }
-  });
 }
 
 // ─── Types ───
@@ -188,8 +213,7 @@ function getFromStorage<T>(key: string, defaultValue: T): T {
       return defaultValue;
     }
     return JSON.parse(stored);
-  } catch (e) {
-    console.error(`[Store] Error reading ${key}:`, e);
+  } catch {
     return defaultValue;
   }
 }
@@ -198,8 +222,8 @@ function setToStorage<T>(key: string, value: T): void {
   try {
     const jsonValue = JSON.stringify(value);
     localStorage.setItem(key, jsonValue);
-    console.log(`[Store] Saved to ${key}:`, value);
-    // Emit change event for same-tab listeners
+    // Broadcast change to all tabs and iframes
+    broadcastChange(key);
     emitChange(key);
   } catch (e) {
     console.error(`[Store] Error saving ${key}:`, e);
@@ -227,7 +251,6 @@ export function getServices(): Service[] {
 
   // Seed default services if empty
   if (services.length === 0) {
-    console.log("[Store] Seeding default services...");
     services = DEFAULT_SERVICES.map((s) => ({
       ...s,
       _id: generateId(),
@@ -243,44 +266,20 @@ export function getServiceBySlug(slug: string): Service | undefined {
   return getServices().find((s) => s.slug === slug);
 }
 
-export function searchServices(query: string, category?: string): Service[] {
-  let services = getServices();
-
-  if (category) {
-    services = services.filter((s) => s.category === category);
-  }
-
-  if (query) {
-    const q = query.toLowerCase();
-    services = services.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
-    );
-  }
-
-  return services.sort((a, b) => b.createdAt - a.createdAt);
-}
-
 // ─── Bookings ───
 export function getBookings(userId?: string): Booking[] {
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
-  console.log(`[Store] getBookings(${userId || "all"}):`, bookings.length, "bookings");
   if (userId) {
-    return bookings.filter((b) => b.userId === userId);
+    return bookings.filter((b) => b.userId === userId || b.userEmail === userId);
   }
   return bookings.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function getAllBookings(): Booking[] {
-  const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
-  console.log("[Store] getAllBookings:", bookings.length, "bookings");
-  return bookings.sort((a, b) => b.createdAt - a.createdAt);
+  return getFromStorage<Booking[]>(BOOKINGS_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Booking {
-  console.log("[Store] Creating booking:", booking);
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
   const newBooking: Booking = {
     ...booking,
@@ -289,12 +288,10 @@ export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Book
   };
   bookings.push(newBooking);
   setToStorage(BOOKINGS_KEY, bookings);
-  console.log("[Store] Booking created. Total bookings:", bookings.length);
   return newBooking;
 }
 
 export function updateBookingStatus(bookingId: string, status: Booking["status"]): void {
-  console.log("[Store] Updating booking status:", bookingId, status);
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
   const updated = bookings.map((b) =>
     b._id === bookingId ? { ...b, status } : b
@@ -309,7 +306,6 @@ export function cancelBooking(bookingId: string): void {
 // ─── Messages ───
 export function getMessages(serviceId?: string): Message[] {
   const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
-  console.log(`[Store] getMessages(${serviceId || "all"}):`, messages.length, "messages");
   if (serviceId) {
     return messages.filter((m) => m.serviceId === serviceId);
   }
@@ -317,13 +313,10 @@ export function getMessages(serviceId?: string): Message[] {
 }
 
 export function getAllMessages(): Message[] {
-  const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
-  console.log("[Store] getAllMessages:", messages.length, "messages");
-  return messages.sort((a, b) => b.createdAt - a.createdAt);
+  return getFromStorage<Message[]>(MESSAGES_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Message {
-  console.log("[Store] Sending message:", message);
   const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
   const newMessage: Message = {
     ...message,
@@ -332,7 +325,6 @@ export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Messag
   };
   messages.push(newMessage);
   setToStorage(MESSAGES_KEY, messages);
-  console.log("[Store] Message sent. Total messages:", messages.length);
   return newMessage;
 }
 
@@ -343,7 +335,6 @@ export function getReplies(messageId: string): Reply[] {
 }
 
 export function sendReply(messageId: string, sender: "admin" | "user", content: string): Reply {
-  console.log("[Store] Sending reply:", messageId, sender, content);
   const replies = getFromStorage<Reply[]>(REPLIES_KEY, []);
   const newReply: Reply = {
     _id: generateId(),
@@ -410,14 +401,12 @@ export function getActivityFeed(): Activity[] {
   return activities.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-// ─── Debug: Get all storage data ───
+// ─── Debug ───
 export function debugStorage(): void {
-  console.log("[Store Debug] === All Storage Data ===");
-  console.log("Services:", getFromStorage(SERVICES_KEY, []));
+  console.log("[Store] === All Storage Data ===");
   console.log("Bookings:", getFromStorage(BOOKINGS_KEY, []));
   console.log("Messages:", getFromStorage(MESSAGES_KEY, []));
-  console.log("Replies:", getFromStorage(REPLIES_KEY, []));
-  console.log("[Store Debug] =========================");
+  console.log("[Store] =========================");
 }
 
 // ─── Clear Data ───

@@ -37,16 +37,17 @@ export default function ServiceDetail() {
   const [emailInput, setEmailInput] = useState("");
   const [emailError, setEmailError] = useState("");
   const [pendingAction, setPendingAction] = useState<"book" | "message" | null>(null);
+  const [savedEmail, setSavedEmail] = useState(user?.email || "");
 
   // Use email as userId for consistency across all pages
-  const getUserId = () => user?.email || "anonymous-" + Date.now();
+  const getUserId = () => savedEmail || user?.email || "anonymous-" + Date.now();
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
   const ensureEmail = (action: "book" | "message"): boolean => {
-    if (!user?.email) {
+    if (!savedEmail && !user?.email) {
       setPendingAction(action);
       setShowEmailPrompt(true);
       return false;
@@ -84,8 +85,12 @@ export default function ServiceDetail() {
     const currentUser = JSON.parse(localStorage.getItem("launchpulse_user") || "{}");
     currentUser.email = emailInput;
     localStorage.setItem("launchpulse_user", JSON.stringify(currentUser));
-    // Force page reload to pick up new email
-    window.location.reload();
+    
+    // Update local state without reload
+    setSavedEmail(emailInput);
+    setShowEmailPrompt(false);
+    setEmailError("");
+    setEmailInput("");
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
