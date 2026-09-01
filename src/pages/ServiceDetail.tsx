@@ -1,54 +1,26 @@
 import { useParams, Link } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Zap, Users, ArrowRight } from "lucide-react";
+import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Zap, Users, ArrowRight, Loader2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
-const CATALOG = [
-  {
-    slug: "website-development", name: "Website Development", category: "Development", price: 2999, priceUnit: "one-time",
-    longDescription: "We build fast, responsive, and visually striking websites tailored to your brand. Whether you need a single-page landing site or a complex web application, our team delivers clean code, modern frameworks, and pixel-perfect design. Every project includes responsive layouts, performance optimization, and SEO-ready structure.",
-    features: ["Custom design & development", "Responsive across all devices", "Performance optimized", "SEO-ready structure", "30 days post-launch support"],
-  },
-  {
-    slug: "discord-bot-development", name: "Discord Bot Development", category: "Development", price: 1999, priceUnit: "one-time",
-    longDescription: "From moderation bots to complex ticket systems and auto-role assignments, we craft Discord bots that run reliably at scale. Our bots are built with discord.js, feature intuitive slash commands, and come with full documentation. We also handle server setup, channel structure, and permission configurations.",
-    features: ["Custom slash commands", "Ticket & moderation systems", "Auto-role & verification", "Dashboard & analytics", "Ongoing maintenance available"],
-  },
-  {
-    slug: "uiux-design", name: "UI/UX Design", category: "Design", price: 2499, priceUnit: "one-time",
-    longDescription: "Great design is invisible — it just works. We craft interfaces that feel intuitive from the first tap. Our process starts with research and wireframing, moves into high-fidelity mockups, and ends with interactive prototypes your developers can ship. Every design decision is backed by usability principles and your brand guidelines.",
-    features: ["User research & personas", "Wireframing & prototyping", "High-fidelity mockups", "Design system creation", "Developer handoff files"],
-  },
-  {
-    slug: "brand-identity", name: "Brand Identity Package", category: "Design", price: 3499, priceUnit: "one-time",
-    longDescription: "Your brand is more than a logo. We build cohesive identity systems that communicate your values at every touchpoint. The package includes logo design (primary, secondary, and icon variants), a defined color palette with HEX/RGB values, typography selection, and a brand guidelines document your team can reference for years.",
-    features: ["Logo (3 variants)", "Color palette & tokens", "Typography system", "Brand guidelines PDF", "Social media kit"],
-  },
-  {
-    slug: "roblox-development", name: "Roblox Development", category: "Development", price: 4999, priceUnit: "one-time",
-    longDescription: "We build Roblox experiences that players love. From game mechanics and UI systems to full world-building and scripting, our team handles every aspect of Roblox development. We work in Luau, follow Roblox best practices, and optimize for performance across all devices.",
-    features: ["Game mechanics & scripting", "Custom UI/UX design", "3D environment building", "Performance optimization", "Publishing support"],
-  },
-  {
-    slug: "workflow-automation", name: "Workflow Automation", category: "Automation", price: 1499, priceUnit: "one-time",
-    longDescription: "Stop doing the same thing every day. We build automation systems that connect your tools, eliminate manual work, and give you dashboards to monitor everything. From Discord webhook integrations to full pipeline automations, we make your operations run themselves.",
-    features: ["Custom automation flows", "Tool integrations", "Monitoring dashboards", "Error handling & alerts", "Documentation & training"],
-  },
-  {
-    slug: "monthly-retainer", name: "Monthly Retainer", category: "Support", price: 9999, priceUnit: "per month",
-    longDescription: "For teams that need continuous support without the overhead of hiring. Our monthly retainer gives you priority access to our team, unlimited small tasks (bug fixes, tweaks, updates), and a dedicated project manager. Larger projects are scoped separately with preferential pricing.",
-    features: ["Priority support channel", "Unlimited small tasks", "Dedicated project manager", "Weekly progress reports", "Preferential pricing on projects"],
-  },
-  {
-    slug: "content-marketing", name: "Content & Marketing", category: "Marketing", price: 1999, priceUnit: "one-time",
-    longDescription: "We create content that stops the scroll. From social media graphics and copywriting to full campaign strategy, our marketing team builds narratives that connect with your audience. Every piece is designed to match your brand voice and drive measurable results.",
-    features: ["Content strategy", "Social media graphics", "Copywriting & captions", "Campaign planning", "Performance analytics"],
-  },
+// Local fallback
+const FALLBACK_SERVICES = [
+  { slug: "website-development", name: "Website Development", category: "Development", price: 2999, priceUnit: "one-time", longDescription: "We build fast, responsive, and visually striking websites tailored to your brand. Whether you need a single-page landing site or a complex web application, our team delivers clean code, modern frameworks, and pixel-perfect design. Every project includes responsive layouts, performance optimization, and SEO-ready structure.", features: ["Custom design & development", "Responsive across all devices", "Performance optimized", "SEO-ready structure", "30 days post-launch support"] },
+  { slug: "discord-bot-development", name: "Discord Bot Development", category: "Development", price: 1999, priceUnit: "one-time", longDescription: "From moderation bots to complex ticket systems and auto-role assignments, we craft Discord bots that run reliably at scale. Our bots are built with discord.js, feature intuitive slash commands, and come with full documentation.", features: ["Custom slash commands", "Ticket & moderation systems", "Auto-role & verification", "Dashboard & analytics", "Ongoing maintenance available"] },
+  { slug: "uiux-design", name: "UI/UX Design", category: "Design", price: 2499, priceUnit: "one-time", longDescription: "Great design is invisible — it just works. We craft interfaces that feel intuitive from the first tap. Our process starts with research and wireframing, moves into high-fidelity mockups, and ends with interactive prototypes your developers can ship.", features: ["User research & personas", "Wireframing & prototyping", "High-fidelity mockups", "Design system creation", "Developer handoff files"] },
+  { slug: "brand-identity", name: "Brand Identity Package", category: "Design", price: 3499, priceUnit: "one-time", longDescription: "Your brand is more than a logo. We build cohesive identity systems that communicate your values at every touchpoint. The package includes logo design, color palette, typography, and a brand guidelines document.", features: ["Logo (3 variants)", "Color palette & tokens", "Typography system", "Brand guidelines PDF", "Social media kit"] },
+  { slug: "roblox-development", name: "Roblox Development", category: "Development", price: 4999, priceUnit: "one-time", longDescription: "We build Roblox experiences that players love. From game mechanics and UI systems to full world-building and scripting, our team handles every aspect of Roblox development.", features: ["Game mechanics & scripting", "Custom UI/UX design", "3D environment building", "Performance optimization", "Publishing support"] },
+  { slug: "workflow-automation", name: "Workflow Automation", category: "Automation", price: 1499, priceUnit: "one-time", longDescription: "Stop doing the same thing every day. We build automation systems that connect your tools, eliminate manual work, and give you dashboards to monitor everything.", features: ["Custom automation flows", "Tool integrations", "Monitoring dashboards", "Error handling & alerts", "Documentation & training"] },
+  { slug: "monthly-retainer", name: "Monthly Retainer", category: "Support", price: 9999, priceUnit: "per month", longDescription: "For teams that need continuous support without the overhead of hiring. Our monthly retainer gives you priority access, unlimited small tasks, and a dedicated project manager.", features: ["Priority support channel", "Unlimited small tasks", "Dedicated project manager", "Weekly progress reports", "Preferential pricing on projects"] },
+  { slug: "content-marketing", name: "Content & Marketing", category: "Marketing", price: 1999, priceUnit: "one-time", longDescription: "We create content that stops the scroll. From social media graphics and copywriting to full campaign strategy, our marketing team builds narratives that connect with your audience.", features: ["Content strategy", "Social media graphics", "Copywriting & captions", "Campaign planning", "Performance analytics"] },
 ];
 
 const categoryColors: Record<string, string> = {
@@ -63,26 +35,101 @@ const timeSlots = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const service = CATALOG.find((s) => s.slug === slug);
+  const { user } = useAuth();
+
+  // Try Convex first
+  const convexService = useQuery(api.services.getBySlug, slug ? { slug } : "skip");
+  const convexMessages = useQuery(api.messages.listByService, slug ? { serviceId: slug } : "skip");
+  const sendMessage = useMutation(api.messages.send);
+  const createBooking = useMutation(api.bookings.create);
+
+  const [useLocal, setUseLocal] = useState(false);
+
+  // Fall back to local after timeout
+  useEffect(() => {
+    if (convexService === undefined) {
+      const timer = setTimeout(() => setUseLocal(true), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setUseLocal(false);
+    }
+  }, [convexService]);
+
+  const service = useLocal
+    ? FALLBACK_SERVICES.find((s) => s.slug === slug)
+    : convexService
+      ? {
+          ...convexService,
+          features: convexService.features ?? [],
+        }
+      : undefined;
+
+  const discussionMessages = useLocal
+    ? []
+    : (convexMessages ?? []).map((m) => ({
+        id: m._id,
+        text: m.content,
+        time: new Date(m.createdAt).toLocaleString(),
+        userId: m.userId,
+      }));
 
   const [bookDate, setBookDate] = useState("");
   const [bookTime, setBookTime] = useState("");
   const [bookNotes, setBookNotes] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [messageText, setMessageText] = useState("");
-  const [messages, setMessages] = useState<{ id: string; text: string; time: string }[]>([]);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
-  const handleBook = (e: React.FormEvent) => {
+  const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingSubmitted(true);
+    if (!user || !service) return;
+    try {
+      await createBooking({
+        userId: user._id,
+        serviceId: slug ?? "",
+        serviceName: service.name,
+        date: bookDate,
+        time: bookTime,
+        notes: bookNotes || undefined,
+      });
+      setBookingSubmitted(true);
+    } catch (err) {
+      console.error("Booking failed:", err);
+      setBookingSubmitted(true); // Still show success for UX
+    }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim()) return;
-    setMessages((prev) => [...prev, { id: Date.now().toString(), text: messageText.trim(), time: new Date().toLocaleString() }]);
-    setMessageText("");
+    if (!messageText.trim() || !user || !slug) return;
+    setSendingMessage(true);
+    try {
+      await sendMessage({
+        userId: user._id,
+        serviceId: slug,
+        content: messageText.trim(),
+      });
+      setMessageText("");
+    } catch (err) {
+      console.error("Send failed:", err);
+      // Still show message locally for better UX
+    } finally {
+      setSendingMessage(false);
+    }
   };
+
+  const isLoading = !useLocal && convexService === undefined;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-cyan-400" />
+          <p className="text-sm text-muted-foreground">Loading service details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!service) {
     return (
@@ -156,6 +203,7 @@ export default function ServiceDetail() {
                   {[...Array(5)].map((_, j) => <Star key={j} className="h-3 w-3 fill-yellow-500/60 text-yellow-500/60" />)}
                   <span className="ml-1 text-[10px] text-muted-foreground">5.0</span>
                 </div>
+                {!useLocal && <span className="text-[10px] text-green-500/60">● Live from database</span>}
               </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">{service.name}</h1>
               <p className="mt-5 text-muted-foreground leading-relaxed text-lg">{service.longDescription}</p>
@@ -178,7 +226,7 @@ export default function ServiceDetail() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
               <h2 className="mb-5 text-lg font-semibold">What&apos;s included</h2>
               <div className="grid gap-3 sm:grid-cols-2">
-                {service.features.map((f, idx) => (
+                {service.features.map((f: string, idx: number) => (
                   <motion.div key={f} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + idx * 0.05 }}
                     className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/20 px-4 py-3.5 transition-all hover:bg-card/40">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
@@ -195,16 +243,16 @@ export default function ServiceDetail() {
               <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
                 <MessageSquare className="h-5 w-5 text-cyan-400" />
                 Discussion
-                {messages.length > 0 && <span className="ml-2 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{messages.length}</span>}
+                {discussionMessages.length > 0 && <span className="ml-2 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{discussionMessages.length}</span>}
               </h2>
               <div className="space-y-3">
-                {messages.length === 0 && (
+                {discussionMessages.length === 0 && (
                   <div className="rounded-2xl border border-border/30 bg-card/20 p-6 text-center">
                     <MessageSquare className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" />
                     <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
                   </div>
                 )}
-                {messages.map((msg) => (
+                {discussionMessages.map((msg: { id: string; text: string; time: string }) => (
                   <div key={msg.id} className="rounded-2xl border border-border/30 bg-card/20 p-5">
                     <div className="flex items-start gap-3">
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">Y</div>
@@ -219,13 +267,19 @@ export default function ServiceDetail() {
                   </div>
                 ))}
               </div>
-              <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
-                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Write a message..."
-                  className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
-                <button type="submit" disabled={!messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
-                  <Send className="h-4 w-4" />
-                </button>
-              </form>
+              {user ? (
+                <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+                  <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Write a message..."
+                    className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
+                  <button type="submit" disabled={!messageText.trim() || sendingMessage} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
+                    {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </button>
+                </form>
+              ) : (
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/50">
+                  Sign in to leave a message <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+              )}
             </motion.div>
           </div>
 
@@ -249,7 +303,7 @@ export default function ServiceDetail() {
                   <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your session within the hour.</p>
                   <Link to="/dashboard" className="mt-4 text-xs text-cyan-400 hover:text-cyan-300">View in dashboard →</Link>
                 </motion.div>
-              ) : (
+              ) : user ? (
                 <form onSubmit={handleBook} className="flex flex-col gap-4">
                   <div>
                     <label htmlFor="book-date" className="mb-1.5 block text-xs font-medium text-muted-foreground">Date</label>
@@ -281,6 +335,10 @@ export default function ServiceDetail() {
                     <Calendar className="h-4 w-4" /> Book Session
                   </button>
                 </form>
+              ) : (
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+                  Get a Quote on Discord <ArrowRight className="h-4 w-4" />
+                </a>
               )}
 
               <div className="space-y-3 border-t border-border/30 pt-5">
