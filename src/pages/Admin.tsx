@@ -12,14 +12,15 @@ import {
   getAllBookings,
   getAllMessages,
   updateBookingStatus,
-  getReplies,
+  sendMessage,
   sendReply,
+  getReplies,
   getActivityFeed,
   isAdminEmail,
   setAdmin,
   getServices,
   onStorageChange,
-  debugStorage,
+  ADMIN_EMAIL,
   type Booking,
   type Message,
   type Reply,
@@ -89,18 +90,25 @@ export default function Admin() {
     // Listen for storage changes from other tabs
     const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
     const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
-    const unsubReplies = onStorageChange("launchpulse_replies", refreshData);
-
-    // Debug: log storage state
-    debugStorage();
-
     return () => {
       clearInterval(interval);
       unsubBookings();
       unsubMessages();
-      unsubReplies();
     };
   }, [isUserAdmin, refreshData]);
+
+  // Load replies when a message is selected + auto-refresh
+  useEffect(() => {
+    if (!selectedMessage) {
+      setReplies([]);
+      return;
+    }
+    setReplies(getReplies(selectedMessage._id));
+    const interval = setInterval(() => {
+      setReplies(getReplies(selectedMessage._id));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [selectedMessage]);
 
   // Redirect if not admin
   useEffect(() => {
@@ -117,12 +125,7 @@ export default function Admin() {
     }
   }, [isUserAdmin, refreshData]);
 
-  // Load replies when message selected
-  useEffect(() => {
-    if (selectedMessage) {
-      setReplies(getReplies(selectedMessage._id));
-    }
-  }, [selectedMessage]);
+
 
   const handleLogout = async () => {
     setAdmin(false);
@@ -145,8 +148,10 @@ export default function Admin() {
     e.preventDefault();
     if (!replyText.trim() || !selectedMessage) return;
 
+    // Save reply using the dedicated reply system
     sendReply(selectedMessage._id, "admin", replyText.trim());
     setReplyText("");
+    // Refresh replies for the selected message
     setReplies(getReplies(selectedMessage._id));
     refreshData();
   };
