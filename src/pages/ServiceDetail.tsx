@@ -1,11 +1,12 @@
 import { useParams, Link } from "react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Zap, Users, ArrowRight } from "lucide-react";
+import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Zap, Users, ArrowRight, Mail } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { getServiceBySlug, getMessages, sendMessage, createBooking } from "@/lib/store";
+import { useAuth } from "@/hooks/use-auth";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
@@ -21,6 +22,7 @@ const timeSlots = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const { user } = useAuth();
 
   const service = slug ? getServiceBySlug(slug) : undefined;
   const discussionMessages = slug ? getMessages(slug) : [];
@@ -31,13 +33,28 @@ export default function ServiceDetail() {
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [, setMessages] = useState(discussionMessages);
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
 
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!service) return;
 
+    // Check if user has email
+    if (!user?.email) {
+      setShowEmailPrompt(true);
+      return;
+    }
+
     createBooking({
-      userId: "local-user",
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name || user.email.split("@")[0],
       serviceId: service.slug,
       serviceName: service.name,
       date: bookDate,
@@ -49,12 +66,52 @@ export default function ServiceDetail() {
     setBookingSubmitted(true);
   };
 
+  const handleEmailSubmit = () => {
+    if (!isValidEmail(emailInput)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    // Update user with email (in real app, this would update the auth state)
+    // For now, we'll store it and use it
+    const currentUser = JSON.parse(localStorage.getItem("launchpulse_user") || "{}");
+    currentUser.email = emailInput;
+    localStorage.setItem("launchpulse_user", JSON.stringify(currentUser));
+
+    setShowEmailPrompt(false);
+    setEmailError("");
+
+    // Now create the booking
+    if (service) {
+      createBooking({
+        userId: currentUser._id,
+        userEmail: emailInput,
+        userName: currentUser.name || emailInput.split("@")[0],
+        serviceId: service.slug,
+        serviceName: service.name,
+        date: bookDate,
+        time: bookTime,
+        status: "pending",
+        notes: bookNotes || undefined,
+      });
+      setBookingSubmitted(true);
+    }
+  };
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !slug) return;
 
+    // Check if user has email
+    if (!user?.email) {
+      setShowEmailPrompt(true);
+      return;
+    }
+
     sendMessage({
-      userId: "local-user",
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name || user.email.split("@")[0],
       serviceId: slug,
       content: messageText.trim(),
     });
@@ -186,10 +243,12 @@ export default function ServiceDetail() {
                 {discussionMessages.map((msg) => (
                   <div key={msg._id} className="rounded-2xl border border-border/30 bg-card/20 p-5">
                     <div className="flex items-start gap-3">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">Y</div>
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
+                        {msg.userName?.charAt(0).toUpperCase() || "U"}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">You</span>
+                          <span className="text-sm font-medium">{msg.userName || "You"}</span>
                           <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</span>
                         </div>
                         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.content}</p>
@@ -199,7 +258,7 @@ export default function ServiceDetail() {
                 ))}
               </div>
               <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
-                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Write a message..."
+                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder={user?.email ? "Write a message..." : "Enter email to send messages..."}
                   className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
                 <button type="submit" disabled={!messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
                   <Send className="h-4 w-4" />
@@ -259,6 +318,9 @@ export default function ServiceDetail() {
                     className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110 disabled:opacity-50">
                     <Calendar className="h-4 w-4" /> Book Session
                   </button>
+                  {!user?.email && (
+                    <p className="text-[10px] text-muted-foreground text-center">Email required for booking</p>
+                  )}
                 </form>
               )}
 
@@ -284,6 +346,57 @@ export default function ServiceDetail() {
           </div>
         </div>
       </div>
+
+      {/* Email Prompt Modal */}
+      {showEmailPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mx-4 w-full max-w-md rounded-2xl border border-border/40 bg-background p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-cyan-500/10">
+                <Mail className="h-5 w-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Email Required</h3>
+                <p className="text-xs text-muted-foreground">Enter your email to continue</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email Address</label>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => { setEmailInput(e.target.value); setEmailError(""); }}
+                  placeholder="you@example.com"
+                  className="w-full rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                  autoFocus
+                />
+                {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowEmailPrompt(false); setEmailError(""); }}
+                  className="flex-1 rounded-xl border border-border/50 bg-card/30 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEmailSubmit}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

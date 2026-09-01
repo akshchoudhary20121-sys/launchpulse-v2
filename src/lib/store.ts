@@ -4,6 +4,8 @@
 const SERVICES_KEY = "launchpulse_services";
 const BOOKINGS_KEY = "launchpulse_bookings";
 const MESSAGES_KEY = "launchpulse_messages";
+const REPLIES_KEY = "launchpulse_replies";
+const ADMIN_KEY = "launchpulse_admin";
 
 // ─── Types ───
 export interface Service {
@@ -23,6 +25,8 @@ export interface Service {
 export interface Booking {
   _id: string;
   userId: string;
+  userEmail: string;
+  userName: string;
   serviceName: string;
   serviceId: string;
   date: string;
@@ -35,7 +39,17 @@ export interface Booking {
 export interface Message {
   _id: string;
   userId: string;
+  userEmail: string;
+  userName: string;
   serviceId: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface Reply {
+  _id: string;
+  messageId: string;
+  sender: "admin" | "user";
   content: string;
   createdAt: number;
 }
@@ -154,6 +168,19 @@ function setToStorage<T>(key: string, value: T): void {
   }
 }
 
+// ─── Admin ───
+export function isAdmin(): boolean {
+  return getFromStorage<boolean>(ADMIN_KEY, false);
+}
+
+export function setAdmin(isAdminUser: boolean): void {
+  setToStorage(ADMIN_KEY, isAdminUser);
+}
+
+export function getAdminCredentials(): { email: string; password: string } {
+  return { email: "admin@launchpulse.studio", password: "admin123" };
+}
+
 // ─── Services ───
 export function getServices(): Service[] {
   let services = getFromStorage<Service[]>(SERVICES_KEY, []);
@@ -201,7 +228,11 @@ export function getBookings(userId?: string): Booking[] {
   if (userId) {
     return bookings.filter((b) => b.userId === userId);
   }
-  return bookings;
+  return bookings.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function getAllBookings(): Booking[] {
+  return getFromStorage<Booking[]>(BOOKINGS_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Booking {
@@ -216,12 +247,16 @@ export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Book
   return newBooking;
 }
 
-export function cancelBooking(bookingId: string): void {
+export function updateBookingStatus(bookingId: string, status: Booking["status"]): void {
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
   const updated = bookings.map((b) =>
-    b._id === bookingId ? { ...b, status: "cancelled" as const } : b
+    b._id === bookingId ? { ...b, status } : b
   );
   setToStorage(BOOKINGS_KEY, updated);
+}
+
+export function cancelBooking(bookingId: string): void {
+  updateBookingStatus(bookingId, "cancelled");
 }
 
 // ─── Messages ───
@@ -230,7 +265,11 @@ export function getMessages(serviceId?: string): Message[] {
   if (serviceId) {
     return messages.filter((m) => m.serviceId === serviceId);
   }
-  return messages;
+  return messages.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function getAllMessages(): Message[] {
+  return getFromStorage<Message[]>(MESSAGES_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Message {
@@ -245,9 +284,83 @@ export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Messag
   return newMessage;
 }
 
+// ─── Replies ───
+export function getReplies(messageId: string): Reply[] {
+  const replies = getFromStorage<Reply[]>(REPLIES_KEY, []);
+  return replies.filter((r) => r.messageId === messageId).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export function sendReply(messageId: string, sender: "admin" | "user", content: string): Reply {
+  const replies = getFromStorage<Reply[]>(REPLIES_KEY, []);
+  const newReply: Reply = {
+    _id: generateId(),
+    messageId,
+    sender,
+    content,
+    createdAt: Date.now(),
+  };
+  replies.push(newReply);
+  setToStorage(REPLIES_KEY, replies);
+  return newReply;
+}
+
+export function getAllReplies(): Reply[] {
+  return getFromStorage<Reply[]>(REPLIES_KEY, []).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+// ─── Activity Feed (for admin) ───
+export interface Activity {
+  id: string;
+  type: "booking" | "message" | "reply";
+  description: string;
+  userEmail: string;
+  createdAt: number;
+}
+
+export function getActivityFeed(): Activity[] {
+  const bookings = getAllBookings();
+  const messages = getAllMessages();
+  const replies = getAllReplies();
+
+  const activities: Activity[] = [];
+
+  bookings.forEach((b) => {
+    activities.push({
+      id: `booking-${b._id}`,
+      type: "booking",
+      description: `New booking: ${b.serviceName} (${b.status})`,
+      userEmail: b.userEmail,
+      createdAt: b.createdAt,
+    });
+  });
+
+  messages.forEach((m) => {
+    activities.push({
+      id: `message-${m._id}`,
+      type: "message",
+      description: `New message on service: ${m.serviceId}`,
+      userEmail: m.userEmail,
+      createdAt: m.createdAt,
+    });
+  });
+
+  replies.forEach((r) => {
+    activities.push({
+      id: `reply-${r._id}`,
+      type: "reply",
+      description: `Reply to message: ${r.content.slice(0, 50)}...`,
+      userEmail: r.sender === "admin" ? "admin@launchpulse.studio" : "user",
+      createdAt: r.createdAt,
+    });
+  });
+
+  return activities.sort((a, b) => b.createdAt - a.createdAt);
+}
+
 // ─── Clear Data ───
 export function clearAllData(): void {
   localStorage.removeItem(SERVICES_KEY);
   localStorage.removeItem(BOOKINGS_KEY);
   localStorage.removeItem(MESSAGES_KEY);
+  localStorage.removeItem(REPLIES_KEY);
 }
