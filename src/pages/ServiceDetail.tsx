@@ -5,8 +5,9 @@ import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Z
 import logo from "@/assets/logo.svg";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { getServiceBySlug, getMessages, sendMessage, createBooking } from "@/lib/store";
+import { getServiceBySlug, getMessages, sendMessage, createBooking, onStorageChange, ADMIN_EMAIL } from "@/lib/store";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
@@ -25,7 +26,17 @@ export default function ServiceDetail() {
   const { user } = useAuth();
 
   const service = slug ? getServiceBySlug(slug) : undefined;
-  const discussionMessages = slug ? getMessages(slug) : [];
+  const [discussionMessages, setDiscussionMessages] = useState(slug ? getMessages(slug) : []);
+
+  // Auto-refresh messages when storage changes
+  useEffect(() => {
+    if (!slug) return;
+    const refresh = () => setDiscussionMessages(getMessages(slug));
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    const unsub = onStorageChange("launchpulse_messages", refresh);
+    return () => { clearInterval(interval); unsub(); };
+  }, [slug]);
 
   const [bookDate, setBookDate] = useState("");
   const [bookTime, setBookTime] = useState("");
@@ -243,22 +254,26 @@ export default function ServiceDetail() {
                     <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
                   </div>
                 )}
-                {discussionMessages.map((msg) => (
-                  <div key={msg._id} className="rounded-2xl border border-border/30 bg-card/20 p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
-                        {msg.userName?.charAt(0).toUpperCase() || "U"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{msg.userName || "You"}</span>
-                          <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</span>
+                {discussionMessages.sort((a, b) => a.createdAt - b.createdAt).map((msg) => {
+                  const isAdmin = msg.userEmail === ADMIN_EMAIL;
+                  return (
+                    <div key={msg._id} className={`rounded-2xl border p-5 ${isAdmin ? "border-cyan-500/30 bg-cyan-500/5" : "border-border/30 bg-card/20"}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-foreground/70 ${isAdmin ? "bg-cyan-500/20" : "bg-gradient-to-br from-cyan-500/20 to-purple-500/20"}`}>
+                          {isAdmin ? "A" : (msg.userName?.charAt(0).toUpperCase() || "U")}
                         </div>
-                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.content}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${isAdmin ? "text-cyan-400" : ""}`}>{isAdmin ? "LaunchPulse Admin" : (msg.userName || "You")}</span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</span>
+                            {isAdmin && <span className="rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-medium text-cyan-400">REPLY</span>}
+                          </div>
+                          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.content}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
                 <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder={user?.email ? "Write a message..." : "Enter email first to send messages..."}

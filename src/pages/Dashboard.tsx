@@ -69,21 +69,28 @@ export default function Dashboard() {
       if (upcoming) setShowNotification(true);
     }
     
-    // Get all messages (for demo purposes)
-    setMessages(getMessages());
+    // Get all messages for this user
+    const uid = getUserId();
+    const allMsgs = getMessages();
+    const userMsgs = uid
+      ? allMsgs.filter((m) => m.userEmail === uid || m.userId === uid)
+      : [];
+    setMessages(userMsgs);
   }, [user?.email]);
 
   // Auto-refresh every 3 seconds + listen for storage changes
   useEffect(() => {
     refreshData();
-    const interval = setInterval(refreshData, 3000);
+    const interval = setInterval(refreshData, 2000);
     const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
     const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
+    const unsubReplies = onStorageChange("launchpulse_replies", refreshData);
 
     return () => {
       clearInterval(interval);
       unsubBookings();
       unsubMessages();
+      unsubReplies();
     };
   }, [refreshData]);
 
@@ -346,7 +353,7 @@ export default function Dashboard() {
 
             {activeTab === "messages" && (
               <div>
-                <h2 className="mb-4 text-lg font-semibold">Your Messages</h2>
+                <h2 className="mb-4 text-lg font-semibold">Messages & Replies</h2>
                 {messages.length === 0 ? (
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
                     <MessageSquare className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -356,20 +363,27 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messages.map((m) => (
-                      <div key={m._id} className="rounded-2xl border border-border/40 bg-card/30 p-5 transition-all hover:bg-card/40">
-                        <div className="flex items-start gap-3">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">Y</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">You</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(m.createdAt).toLocaleString()}</span>
+                    {messages.sort((a, b) => a.createdAt - b.createdAt).map((m) => {
+                      const isAdminReply = m.userEmail === "launchpulsesite@gmail.com";
+                      return (
+                        <div key={m._id} className={`rounded-2xl border p-5 transition-all hover:bg-card/40 ${isAdminReply ? "border-cyan-500/30 bg-cyan-500/5 ml-8" : "border-border/40 bg-card/30"}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-foreground/70 ${isAdminReply ? "bg-cyan-500/20" : "bg-gradient-to-br from-cyan-500/20 to-purple-500/20"}`}>
+                              {isAdminReply ? "A" : "Y"}
                             </div>
-                            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{m.content}</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${isAdminReply ? "text-cyan-400" : ""}`}>{isAdminReply ? "LaunchPulse Admin" : "You"}</span>
+                                <span className="text-[10px] text-muted-foreground">{new Date(m.createdAt).toLocaleString()}</span>
+                                {isAdminReply && <span className="rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-medium text-cyan-400">REPLY</span>}
+                              </div>
+                              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{m.content}</p>
+                              <p className="mt-1 text-[10px] text-muted-foreground/50">Service: {m.serviceId}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

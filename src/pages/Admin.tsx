@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router";
 import {
@@ -13,8 +13,6 @@ import {
   getAllMessages,
   updateBookingStatus,
   sendMessage,
-  sendReply,
-  getReplies,
   getActivityFeed,
   isAdminEmail,
   setAdmin,
@@ -23,7 +21,6 @@ import {
   ADMIN_EMAIL,
   type Booking,
   type Message,
-  type Reply,
   type Activity as ActivityFeedItem,
 } from "@/lib/store";
 
@@ -60,14 +57,13 @@ export default function Admin() {
   const [activities, setActivities] = useState<ActivityFeedItem[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState("");
-  const [replies, setReplies] = useState<Reply[]>([]);
+  const [threadMessages, setThreadMessages] = useState<Message[]>([]);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
 
-  // Check if user is admin
   const isUserAdmin = user?.email ? isAdminEmail(user.email) : false;
 
-  // Refresh data function
   const refreshData = useCallback(() => {
     setBookings(getAllBookings());
     setMessages(getAllMessages());
@@ -78,37 +74,38 @@ export default function Admin() {
   // Auto-refresh every 2 seconds + listen for storage changes
   useEffect(() => {
     if (!isUserAdmin) return;
-    
-    // Refresh immediately
     refreshData();
-    
-    // Auto-refresh every 2 seconds
-    const interval = setInterval(() => {
-      refreshData();
-    }, 2000);
-
-    // Listen for storage changes from other tabs
+    const interval = setInterval(refreshData, 2000);
     const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
     const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
+    const unsubReplies = onStorageChange("launchpulse_replies", refreshData);
     return () => {
       clearInterval(interval);
       unsubBookings();
       unsubMessages();
+      unsubReplies();
     };
   }, [isUserAdmin, refreshData]);
 
-  // Load replies when a message is selected + auto-refresh
+  // Load thread messages when a message is selected
   useEffect(() => {
     if (!selectedMessage) {
-      setReplies([]);
+      setThreadMessages([]);
       return;
     }
-    setReplies(getReplies(selectedMessage._id));
-    const interval = setInterval(() => {
-      setReplies(getReplies(selectedMessage._id));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [selectedMessage]);
+    // Get ALL messages for this service+user combo (thread)
+    const allMsgs = getAllMessages();
+    const thread = allMsgs.filter(
+      (m) =>
+        m.serviceId === selectedMessage.serviceId &&
+        m.userEmail === selectedMessage.userEmail
+    );
+    setThreadMessages(thread);
+    // Auto-scroll to bottom
+    setTimeout(() => {
+      threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [selectedMessage, messages]);
 
   // Redirect if not admin
   useEffect(() => {
@@ -124,8 +121,6 @@ export default function Admin() {
       refreshData();
     }
   }, [isUserAdmin, refreshData]);
-
-
 
   const handleLogout = async () => {
     setAdmin(false);
@@ -148,11 +143,16 @@ export default function Admin() {
     e.preventDefault();
     if (!replyText.trim() || !selectedMessage) return;
 
-    // Save reply using the dedicated reply system
-    sendReply(selectedMessage._id, "admin", replyText.trim());
+    // Send as a regular message so customer sees it everywhere
+    sendMessage({
+      userId: selectedMessage.userEmail,
+      userEmail: ADMIN_EMAIL,
+      userName: "LaunchPulse Admin",
+      serviceId: selectedMessage.serviceId,
+      content: replyText.trim(),
+    });
+
     setReplyText("");
-    // Refresh replies for the selected message
-    setReplies(getReplies(selectedMessage._id));
     refreshData();
   };
 
@@ -169,7 +169,29 @@ export default function Admin() {
   const confirmedBookings = bookings.filter((b) => b.status === "confirmed");
   const completedBookings = bookings.filter((b) => b.status === "completed");
 
-  // Show loading or redirect if not admin
+  // Group messages into conversations (unique user+service combos)
+  const conversations = messages.reduce((acc, msg) => {
+    const key = `${msg.userEmail}::${msg.serviceId}`;
+    if (!acc[key]) {
+      acc[key] = {
+        userEmail: msg.userEmail,
+        userName: msg.userName,
+        serviceId: msg.serviceId,
+        latestMessage: msg,
+        count: 0,
+      };
+    }
+    acc[key].count++;
+    if (msg.createdAt > acc[key].latestMessage.createdAt) {
+      acc[key].latestMessage = msg;
+    }
+    return acc;
+  }, {} as Record<string, { userEmail: string; userName: string; serviceId: string; latestMessage: Message; count: number }>);
+
+  const conversationList = Object.values(conversations).sort(
+    (a, b) => b.latestMessage.createdAt - a.latestMessage.createdAt
+  );
+
   if (!isUserAdmin) {
     return (
       <div className="noise-overlay min-h-screen flex items-center justify-center bg-background text-foreground">
@@ -180,7 +202,6 @@ export default function Admin() {
     );
   }
 
-  // Admin dashboard
   return (
     <div className="noise-overlay min-h-screen bg-background text-foreground">
       {/* Navbar */}
@@ -196,20 +217,14 @@ export default function Admin() {
               <div className="size-2 rounded-full bg-green-500 animate-pulse" />
               Live
             </div>
-            <button
-              onClick={handleRefresh}
-              className={`inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:bg-card/50 ${isRefreshing ? "animate-spin" : ""}`}
-            >
+            <button onClick={handleRefresh} className={`inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:bg-card/50 ${isRefreshing ? "animate-spin" : ""}`}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </button>
             <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               View Site
             </Link>
             <span className="text-xs text-muted-foreground">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"
-            >
+            <button onClick={handleLogout} className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50">
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
           </div>
@@ -226,16 +241,10 @@ export default function Admin() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/catalog"
-              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"
-            >
+            <Link to="/catalog" className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground hover:bg-card/50">
               <Eye className="h-4 w-4" /> View Site
             </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110"
-            >
+            <Link to="/" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110">
               <Zap className="h-4 w-4" /> Quick Actions
             </Link>
           </div>
@@ -290,26 +299,17 @@ export default function Admin() {
         {/* Tabs */}
         <div className="mb-8 flex gap-1 rounded-xl border border-border/40 bg-card/20 p-1">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                activeTab === tab.id
-                  ? "bg-card/60 text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+                activeTab === tab.id ? "bg-card/60 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}>
               <tab.icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
               {tab.id === "bookings" && bookings.length > 0 && (
-                <span className="ml-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
-                  {bookings.length}
-                </span>
+                <span className="ml-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-medium text-cyan-400">{bookings.length}</span>
               )}
-              {tab.id === "messages" && messages.length > 0 && (
-                <span className="ml-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-medium text-purple-400">
-                  {messages.length}
-                </span>
+              {tab.id === "messages" && conversationList.length > 0 && (
+                <span className="ml-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-medium text-purple-400">{conversationList.length}</span>
               )}
             </button>
           ))}
@@ -318,11 +318,10 @@ export default function Admin() {
         {/* Tab content */}
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-            
+
             {/* Overview */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                {/* Quick Actions */}
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Link to="/catalog" className="gradient-border group flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-5 backdrop-blur-sm transition-all hover:bg-card/50">
                     <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
@@ -357,10 +356,10 @@ export default function Admin() {
                       </div>
                       <div>
                         <p className="font-semibold">Unread Messages</p>
-                        <p className="text-xs text-muted-foreground">{messages.length} total messages</p>
+                        <p className="text-xs text-muted-foreground">{conversationList.length} conversations</p>
                       </div>
                     </div>
-                    {messages.length > 0 && (
+                    {conversationList.length > 0 && (
                       <button onClick={() => setActiveTab("messages")} className="w-full rounded-lg bg-purple-500/10 px-3 py-2 text-xs font-medium text-purple-400 transition-all hover:bg-purple-500/20">
                         View Messages →
                       </button>
@@ -386,8 +385,7 @@ export default function Admin() {
                         <div key={activity.id} className="flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-4 transition-all hover:bg-card/40">
                           <div className={`flex size-10 items-center justify-center rounded-xl ${
                             activity.type === "booking" ? "bg-cyan-500/10" :
-                            activity.type === "message" ? "bg-purple-500/10" :
-                            "bg-green-500/10"
+                            activity.type === "message" ? "bg-purple-500/10" : "bg-green-500/10"
                           }`}>
                             {activity.type === "booking" ? <Calendar className="h-5 w-5 text-cyan-400" /> :
                              activity.type === "message" ? <MessageSquare className="h-5 w-5 text-purple-400" /> :
@@ -430,11 +428,9 @@ export default function Admin() {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">All Bookings</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {pendingBookings.length} pending • {confirmedBookings.length} confirmed • {completedBookings.length} completed
-                    </span>
-                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {pendingBookings.length} pending • {confirmedBookings.length} confirmed • {completedBookings.length} completed
+                  </span>
                 </div>
                 {bookings.length === 0 ? (
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
@@ -494,53 +490,57 @@ export default function Admin() {
               </div>
             )}
 
-            {/* Messages */}
+            {/* Messages - Threaded Chat */}
             {activeTab === "messages" && (
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Message list */}
-                <div>
-                  <h2 className="mb-4 text-lg font-semibold">Customer Messages</h2>
-                  {messages.length === 0 ? (
+              <div className="grid gap-6 lg:grid-cols-[360px_1fr] min-h-[600px]">
+                {/* Conversation list */}
+                <div className="overflow-y-auto max-h-[600px]">
+                  <h2 className="mb-4 text-lg font-semibold">Conversations</h2>
+                  {conversationList.length === 0 ? (
                     <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
                       <MessageSquare className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-medium">No messages yet</p>
                       <p className="mt-1 text-xs text-muted-foreground">Messages will appear when customers send them.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {messages.map((msg) => (
-                        <button
-                          key={msg._id}
-                          onClick={() => setSelectedMessage(msg)}
-                          className={`w-full text-left rounded-2xl border p-4 transition-all hover:bg-card/40 ${
-                            selectedMessage?._id === msg._id
-                              ? "border-cyan-500/50 bg-card/40"
-                              : "border-border/40 bg-card/30"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
-                              {msg.userName?.charAt(0).toUpperCase() || "U"}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium truncate">{msg.userName || "User"}</p>
-                                <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleDateString()}</span>
+                    <div className="space-y-2">
+                      {conversationList.map((conv) => {
+                        const service = getServices().find((s) => s.slug === conv.serviceId);
+                        const isSelected = selectedMessage?.userEmail === conv.userEmail && selectedMessage?.serviceId === conv.serviceId;
+                        return (
+                          <button key={`${conv.userEmail}::${conv.serviceId}`}
+                            onClick={() => setSelectedMessage(conv.latestMessage)}
+                            className={`w-full text-left rounded-2xl border p-4 transition-all hover:bg-card/40 ${
+                              isSelected ? "border-cyan-500/50 bg-card/40" : "border-border/40 bg-card/30"
+                            }`}>
+                            <div className="flex items-start gap-3">
+                              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
+                                {conv.userName?.charAt(0).toUpperCase() || "U"}
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">{msg.userEmail}</p>
-                              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{msg.content}</p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium truncate">{conv.userName || "User"}</p>
+                                  <span className="text-[10px] text-muted-foreground">{new Date(conv.latestMessage.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{conv.userEmail} • {service?.name || conv.serviceId}</p>
+                                <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{conv.latestMessage.content}</p>
+                              </div>
+                              <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                                {conv.count}
+                              </span>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* Chat view */}
-                <div className="rounded-2xl border border-border/40 bg-card/30 p-6">
+                {/* Chat thread */}
+                <div className="rounded-2xl border border-border/40 bg-card/30 p-6 flex flex-col">
                   {selectedMessage ? (
-                    <div className="flex flex-col h-full">
+                    <>
+                      {/* Header */}
                       <div className="mb-4 pb-4 border-b border-border/30">
                         <div className="flex items-center gap-3">
                           <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-sm font-bold text-foreground/70">
@@ -553,42 +553,35 @@ export default function Admin() {
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">Service: {selectedMessage.serviceId}</p>
                       </div>
-                      
-                      {/* Original message */}
-                      <div className="mb-4 rounded-xl bg-card/50 p-4">
-                        <p className="text-sm text-muted-foreground">{selectedMessage.content}</p>
-                        <p className="mt-2 text-[10px] text-muted-foreground">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
-                      </div>
 
-                      {/* Replies */}
-                      <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-64">
-                        {replies.length === 0 && (
-                          <p className="text-xs text-muted-foreground text-center py-4">No replies yet. Send the first reply below.</p>
+                      {/* Thread messages */}
+                      <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
+                        {threadMessages.length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">No messages in this thread.</p>
                         )}
-                        {replies.map((reply) => (
-                          <div
-                            key={reply._id}
-                            className={`rounded-xl p-3 ${
-                              reply.sender === "admin"
-                                ? "bg-cyan-500/10 ml-8"
-                                : "bg-card/50 mr-8"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-medium text-muted-foreground">
-                                {reply.sender === "admin" ? "Admin" : "User"}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(reply.createdAt).toLocaleString()}
-                              </span>
+                        {threadMessages.map((msg) => {
+                          const isAdmin = msg.userEmail === ADMIN_EMAIL;
+                          return (
+                            <div key={msg._id} className={`rounded-xl p-3 max-w-[85%] ${
+                              isAdmin ? "bg-cyan-500/10 ml-auto" : "bg-card/50"
+                            }`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[10px] font-medium ${isAdmin ? "text-cyan-400" : "text-muted-foreground"}`}>
+                                  {isAdmin ? "Admin" : msg.userName || "User"}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {new Date(msg.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-sm">{msg.content}</p>
                             </div>
-                            <p className="text-sm">{reply.content}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
+                        <div ref={threadEndRef} />
                       </div>
 
                       {/* Reply input */}
-                      <form onSubmit={handleSendReply} className="flex gap-2">
+                      <form onSubmit={handleSendReply} className="flex gap-2 border-t border-border/30 pt-4">
                         <input
                           type="text"
                           value={replyText}
@@ -604,11 +597,11 @@ export default function Admin() {
                           <Send className="h-4 w-4" />
                         </button>
                       </form>
-                    </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
                       <MessageSquare className="mb-3 h-8 w-8 text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">Select a message to view and reply</p>
+                      <p className="text-sm text-muted-foreground">Select a conversation to view and reply</p>
                     </div>
                   )}
                 </div>
@@ -634,7 +627,6 @@ export default function Admin() {
                         const service = getServices().find((s) => s.slug === b.serviceId);
                         return sum + (service?.price || 0);
                       }, 0);
-                      
                       return (
                         <div key={email} className="rounded-2xl border border-border/40 bg-card/30 p-5 transition-all hover:bg-card/40">
                           <div className="flex items-center gap-4">
@@ -648,13 +640,6 @@ export default function Admin() {
                             <div className="text-right">
                               <p className="text-lg font-bold gradient-text">₹{totalSpent.toLocaleString()}</p>
                               <p className="text-xs text-muted-foreground">{customerBookings.length} bookings</p>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              {customerBookings.slice(0, 2).map((b) => (
-                                <span key={b._id} className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${statusColors[b.status]}`}>
-                                  {b.serviceName}
-                                </span>
-                              ))}
                             </div>
                           </div>
                         </div>
@@ -681,8 +666,7 @@ export default function Admin() {
                       <div key={activity.id} className="flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-4 transition-all hover:bg-card/40">
                         <div className={`flex size-10 items-center justify-center rounded-xl ${
                           activity.type === "booking" ? "bg-cyan-500/10" :
-                          activity.type === "message" ? "bg-purple-500/10" :
-                          "bg-green-500/10"
+                          activity.type === "message" ? "bg-purple-500/10" : "bg-green-500/10"
                         }`}>
                           {activity.type === "booking" ? <Calendar className="h-5 w-5 text-cyan-400" /> :
                            activity.type === "message" ? <MessageSquare className="h-5 w-5 text-purple-400" /> :
