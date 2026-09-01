@@ -1,15 +1,55 @@
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useParams, Link } from "react-router";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Calendar, Clock, Send, Loader2, MessageSquare, Star, Shield, Zap, Users, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Calendar, Clock, Send, MessageSquare, Star, Shield, Zap, Users, ArrowRight } from "lucide-react";
 import logo from "@/assets/logo.svg";
-import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
+
+const CATALOG = [
+  {
+    slug: "website-development", name: "Website Development", category: "Development", price: 2999, priceUnit: "one-time",
+    longDescription: "We build fast, responsive, and visually striking websites tailored to your brand. Whether you need a single-page landing site or a complex web application, our team delivers clean code, modern frameworks, and pixel-perfect design. Every project includes responsive layouts, performance optimization, and SEO-ready structure.",
+    features: ["Custom design & development", "Responsive across all devices", "Performance optimized", "SEO-ready structure", "30 days post-launch support"],
+  },
+  {
+    slug: "discord-bot-development", name: "Discord Bot Development", category: "Development", price: 1999, priceUnit: "one-time",
+    longDescription: "From moderation bots to complex ticket systems and auto-role assignments, we craft Discord bots that run reliably at scale. Our bots are built with discord.js, feature intuitive slash commands, and come with full documentation. We also handle server setup, channel structure, and permission configurations.",
+    features: ["Custom slash commands", "Ticket & moderation systems", "Auto-role & verification", "Dashboard & analytics", "Ongoing maintenance available"],
+  },
+  {
+    slug: "uiux-design", name: "UI/UX Design", category: "Design", price: 2499, priceUnit: "one-time",
+    longDescription: "Great design is invisible — it just works. We craft interfaces that feel intuitive from the first tap. Our process starts with research and wireframing, moves into high-fidelity mockups, and ends with interactive prototypes your developers can ship. Every design decision is backed by usability principles and your brand guidelines.",
+    features: ["User research & personas", "Wireframing & prototyping", "High-fidelity mockups", "Design system creation", "Developer handoff files"],
+  },
+  {
+    slug: "brand-identity", name: "Brand Identity Package", category: "Design", price: 3499, priceUnit: "one-time",
+    longDescription: "Your brand is more than a logo. We build cohesive identity systems that communicate your values at every touchpoint. The package includes logo design (primary, secondary, and icon variants), a defined color palette with HEX/RGB values, typography selection, and a brand guidelines document your team can reference for years.",
+    features: ["Logo (3 variants)", "Color palette & tokens", "Typography system", "Brand guidelines PDF", "Social media kit"],
+  },
+  {
+    slug: "roblox-development", name: "Roblox Development", category: "Development", price: 4999, priceUnit: "one-time",
+    longDescription: "We build Roblox experiences that players love. From game mechanics and UI systems to full world-building and scripting, our team handles every aspect of Roblox development. We work in Luau, follow Roblox best practices, and optimize for performance across all devices.",
+    features: ["Game mechanics & scripting", "Custom UI/UX design", "3D environment building", "Performance optimization", "Publishing support"],
+  },
+  {
+    slug: "workflow-automation", name: "Workflow Automation", category: "Automation", price: 1499, priceUnit: "one-time",
+    longDescription: "Stop doing the same thing every day. We build automation systems that connect your tools, eliminate manual work, and give you dashboards to monitor everything. From Discord webhook integrations to full pipeline automations, we make your operations run themselves.",
+    features: ["Custom automation flows", "Tool integrations", "Monitoring dashboards", "Error handling & alerts", "Documentation & training"],
+  },
+  {
+    slug: "monthly-retainer", name: "Monthly Retainer", category: "Support", price: 9999, priceUnit: "per month",
+    longDescription: "For teams that need continuous support without the overhead of hiring. Our monthly retainer gives you priority access to our team, unlimited small tasks (bug fixes, tweaks, updates), and a dedicated project manager. Larger projects are scoped separately with preferential pricing.",
+    features: ["Priority support channel", "Unlimited small tasks", "Dedicated project manager", "Weekly progress reports", "Preferential pricing on projects"],
+  },
+  {
+    slug: "content-marketing", name: "Content & Marketing", category: "Marketing", price: 1999, priceUnit: "one-time",
+    longDescription: "We create content that stops the scroll. From social media graphics and copywriting to full campaign strategy, our marketing team builds narratives that connect with your audience. Every piece is designed to match your brand voice and drive measurable results.",
+    features: ["Content strategy", "Social media graphics", "Copywriting & captions", "Campaign planning", "Performance analytics"],
+  },
+];
 
 const categoryColors: Record<string, string> = {
   Development: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
@@ -19,59 +59,32 @@ const categoryColors: Record<string, string> = {
   Support: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
 };
 
+const timeSlots = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"];
+
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const service = useQuery(api.services.getBySlug, slug ? { slug } : "skip");
-  const messages = useQuery(api.messages.listByService, service ? { serviceId: service._id } : "skip");
-  const sendMessage = useMutation(api.messages.send);
-  const createBooking = useMutation(api.bookings.create);
-
-  const { user } = useAuth();
-  const [messageText, setMessageText] = useState("");
-  const [sending, setSending] = useState(false);
+  const service = CATALOG.find((s) => s.slug === slug);
 
   const [bookDate, setBookDate] = useState("");
   const [bookTime, setBookTime] = useState("");
   const [bookNotes, setBookNotes] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [messages, setMessages] = useState<{ id: string; text: string; time: string }[]>([]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleBook = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || !service || !user) return;
-    setSending(true);
-    await sendMessage({ userId: user._id, serviceId: service._id, content: messageText.trim() });
-    setMessageText("");
-    setSending(false);
-  };
-
-  const handleBook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!service || !user || !bookDate || !bookTime) return;
-    setBookingLoading(true);
-    await createBooking({
-      userId: user._id,
-      serviceId: service._id,
-      serviceName: service.name,
-      date: bookDate,
-      time: bookTime,
-      notes: bookNotes || undefined,
-    });
     setBookingSubmitted(true);
-    setBookingLoading(false);
   };
 
-  const timeSlots = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"];
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageText.trim()) return;
+    setMessages((prev) => [...prev, { id: Date.now().toString(), text: messageText.trim(), time: new Date().toLocaleString() }]);
+    setMessageText("");
+  };
 
-  if (service === undefined) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-      </div>
-    );
-  }
-
-  if (service === null) {
+  if (!service) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="text-center">
@@ -125,7 +138,6 @@ export default function ServiceDetail() {
       </nav>
 
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20">
-        {/* Breadcrumb */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Link to="/catalog" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Back to catalog
@@ -135,7 +147,6 @@ export default function ServiceDetail() {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-10">
-            {/* Hero */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <div className="flex items-center gap-3 mb-4">
                 <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider ${categoryColors[service.category] ?? "bg-card/60 text-muted-foreground"}`}>
@@ -150,7 +161,6 @@ export default function ServiceDetail() {
               <p className="mt-5 text-muted-foreground leading-relaxed text-lg">{service.longDescription}</p>
             </motion.div>
 
-            {/* Stats Row */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
               {[
                 { icon: Zap, label: "Fast Delivery", value: "24-48h" },
@@ -165,18 +175,12 @@ export default function ServiceDetail() {
               ))}
             </motion.div>
 
-            {/* Features */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
               <h2 className="mb-5 text-lg font-semibold">What&apos;s included</h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {service.features.map((f, idx) => (
-                  <motion.div
-                    key={f}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + idx * 0.05 }}
-                    className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/20 px-4 py-3.5 transition-all hover:bg-card/40"
-                  >
+                  <motion.div key={f} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + idx * 0.05 }}
+                    className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/20 px-4 py-3.5 transition-all hover:bg-card/40">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
                       <Check className="h-3.5 w-3.5 text-cyan-400" />
                     </div>
@@ -191,71 +195,43 @@ export default function ServiceDetail() {
               <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
                 <MessageSquare className="h-5 w-5 text-cyan-400" />
                 Discussion
-                {messages && messages.length > 0 && (
-                  <span className="ml-2 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{messages.length}</span>
-                )}
+                {messages.length > 0 && <span className="ml-2 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{messages.length}</span>}
               </h2>
-
               <div className="space-y-3">
-                <AnimatePresence>
-                  {messages && messages.length === 0 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border/30 bg-card/20 p-6 text-center">
-                      <MessageSquare className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
-                    </motion.div>
-                  )}
-                  {messages?.map((msg) => (
-                    <motion.div
-                      key={msg._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-2xl border border-border/30 bg-card/20 p-5"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
-                          {msg.userId.slice(0, 2).toUpperCase()}
+                {messages.length === 0 && (
+                  <div className="rounded-2xl border border-border/30 bg-card/20 p-6 text-center">
+                    <MessageSquare className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
+                  </div>
+                )}
+                {messages.map((msg) => (
+                  <div key={msg.id} className="rounded-2xl border border-border/30 bg-card/20 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">Y</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">You</span>
+                          <span className="text-[10px] text-muted-foreground">{msg.time}</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">User</span>
-                            <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</span>
-                          </div>
-                          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.content}</p>
-                        </div>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.text}</p>
                       </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              {user ? (
-                <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
-                  <input
-                    type="text"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Write a message..."
-                    className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                  />
-                  <button type="submit" disabled={sending || !messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
-                    <Send className="h-4 w-4" />
-                  </button>
-                </form>
-              ) : (
-                <div className="mt-4 rounded-xl border border-border/30 bg-card/20 p-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    <Link to="/auth" className="text-cyan-400 hover:text-cyan-300">Sign in</Link> to leave a message, or{" "}
-                    <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">get a quote on Discord</a>
-                  </p>
-                </div>
-              )}
+              <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Write a message..."
+                  className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
+                <button type="submit" disabled={!messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
             </motion.div>
           </div>
 
-          {/* Sidebar — Booking */}
+          {/* Sidebar */}
           <div className="lg:col-span-1">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="sticky top-24 rounded-2xl border border-border/40 bg-card/30 p-6 backdrop-blur-sm space-y-6">
-              {/* Price */}
               <div>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-4xl font-bold tracking-tight">₹{service.price.toLocaleString()}</span>
@@ -264,94 +240,66 @@ export default function ServiceDetail() {
                 <p className="mt-2 text-xs text-muted-foreground">Custom scope available — discuss on Discord</p>
               </div>
 
-              {/* Booking Form */}
-              {user ? (
-                bookingSubmitted ? (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-8 text-center">
-                    <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-cyan-500/10">
-                      <Calendar className="h-6 w-6 text-cyan-400" />
-                    </div>
-                    <p className="text-sm font-semibold">Booking submitted!</p>
-                    <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your session within the hour.</p>
-                    <Link to="/dashboard" className="mt-4 text-xs text-cyan-400 hover:text-cyan-300">View in dashboard →</Link>
-                  </motion.div>
-                ) : (
-                  <form onSubmit={handleBook} className="flex flex-col gap-4">
-                    <div>
-                      <label htmlFor="book-date" className="mb-1.5 block text-xs font-medium text-muted-foreground">Date</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          id="book-date"
-                          type="date"
-                          required
-                          value={bookDate}
-                          onChange={(e) => setBookDate(e.target.value)}
-                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="book-time" className="mb-1.5 block text-xs font-medium text-muted-foreground">Time</label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <select
-                          id="book-time"
-                          required
-                          value={bookTime}
-                          onChange={(e) => setBookTime(e.target.value)}
-                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                        >
-                          <option value="">Select a time</option>
-                          {timeSlots.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="book-notes" className="mb-1.5 block text-xs font-medium text-muted-foreground">Project details (optional)</label>
-                      <textarea
-                        id="book-notes"
-                        rows={3}
-                        value={bookNotes}
-                        onChange={(e) => setBookNotes(e.target.value)}
-                        placeholder="Describe your project, goals, and any specific requirements..."
-                        className="w-full rounded-xl border border-border/50 bg-card/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={bookingLoading || !bookDate || !bookTime}
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110 disabled:opacity-50"
-                    >
-                      {bookingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Calendar className="h-4 w-4" /> Book Session</>}
-                    </button>
-                  </form>
-                )
+              {bookingSubmitted ? (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-8 text-center">
+                  <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-cyan-500/10">
+                    <Calendar className="h-6 w-6 text-cyan-400" />
+                  </div>
+                  <p className="text-sm font-semibold">Booking submitted!</p>
+                  <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your session within the hour.</p>
+                  <Link to="/dashboard" className="mt-4 text-xs text-cyan-400 hover:text-cyan-300">View in dashboard →</Link>
+                </motion.div>
               ) : (
-                <div className="space-y-3">
-                  <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
-                    Get a Quote on Discord <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <Link to="/auth" className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-card/20 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/40">
-                    Sign in to Book
-                  </Link>
-                </div>
+                <form onSubmit={handleBook} className="flex flex-col gap-4">
+                  <div>
+                    <label htmlFor="book-date" className="mb-1.5 block text-xs font-medium text-muted-foreground">Date</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input id="book-date" type="date" required value={bookDate} onChange={(e) => setBookDate(e.target.value)}
+                        className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="book-time" className="mb-1.5 block text-xs font-medium text-muted-foreground">Time</label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <select id="book-time" required value={bookTime} onChange={(e) => setBookTime(e.target.value)}
+                        className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20">
+                        <option value="">Select a time</option>
+                        {timeSlots.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="book-notes" className="mb-1.5 block text-xs font-medium text-muted-foreground">Project details (optional)</label>
+                    <textarea id="book-notes" rows={3} value={bookNotes} onChange={(e) => setBookNotes(e.target.value)}
+                      placeholder="Describe your project, goals, and any specific requirements..."
+                      className="w-full rounded-xl border border-border/50 bg-card/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
+                  </div>
+                  <button type="submit" disabled={!bookDate || !bookTime}
+                    className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110 disabled:opacity-50">
+                    <Calendar className="h-4 w-4" /> Book Session
+                  </button>
+                </form>
               )}
 
-              {/* Quick Info */}
               <div className="space-y-3 border-t border-border/30 pt-5">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Zap className="h-4 w-4 shrink-0 text-cyan-400" />
-                  <span>24-48 hour turnaround</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Shield className="h-4 w-4 shrink-0 text-cyan-400" />
-                  <span>Revisions included</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <MessageSquare className="h-4 w-4 shrink-0 text-cyan-400" />
-                  <span>Discord support</span>
-                </div>
+                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-card/20 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/40">
+                  Get a Quote on Discord <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+
+              <div className="space-y-3 border-t border-border/30 pt-5">
+                {[
+                  { icon: Zap, text: "24-48 hour turnaround" },
+                  { icon: Shield, text: "Revisions included" },
+                  { icon: MessageSquare, text: "Discord support" },
+                ].map((item) => (
+                  <div key={item.text} className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <item.icon className="h-4 w-4 shrink-0 text-cyan-400" />
+                    <span>{item.text}</span>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>

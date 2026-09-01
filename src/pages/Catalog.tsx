@@ -1,14 +1,74 @@
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ArrowRight, Filter, Loader2, Grid3X3, List, SlidersHorizontal, X, Tag, Sparkles } from "lucide-react";
+import { Search, ArrowRight, Loader2, Grid3X3, List, SlidersHorizontal, X, Tag, Sparkles } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { Link } from "react-router";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
+
+// ─── Local catalog data (always available) ───
+const CATALOG = [
+  {
+    _id: "1", name: "Website Development", slug: "website-development", category: "Development", price: 2999, priceUnit: "one-time",
+    description: "Custom, responsive websites built with modern tech stacks. From landing pages to full web applications.",
+    longDescription: "We build fast, responsive, and visually striking websites tailored to your brand. Whether you need a single-page landing site or a complex web application, our team delivers clean code, modern frameworks, and pixel-perfect design. Every project includes responsive layouts, performance optimization, and SEO-ready structure.",
+    features: ["Custom design & development", "Responsive across all devices", "Performance optimized", "SEO-ready structure", "30 days post-launch support"],
+    createdAt: 1,
+  },
+  {
+    _id: "2", name: "Discord Bot Development", slug: "discord-bot-development", category: "Development", price: 1999, priceUnit: "one-time",
+    description: "Custom Discord bots, server setups, ticket systems, and automation solutions for communities.",
+    longDescription: "From moderation bots to complex ticket systems and auto-role assignments, we craft Discord bots that run reliably at scale. Our bots are built with discord.js, feature intuitive slash commands, and come with full documentation. We also handle server setup, channel structure, and permission configurations.",
+    features: ["Custom slash commands", "Ticket & moderation systems", "Auto-role & verification", "Dashboard & analytics", "Ongoing maintenance available"],
+    createdAt: 2,
+  },
+  {
+    _id: "3", name: "UI/UX Design", slug: "uiux-design", category: "Design", price: 2499, priceUnit: "one-time",
+    description: "User interface and experience design that balances aesthetics with usability. Wireframes to high-fidelity prototypes.",
+    longDescription: "Great design is invisible — it just works. We craft interfaces that feel intuitive from the first tap. Our process starts with research and wireframing, moves into high-fidelity mockups, and ends with interactive prototypes your developers can ship. Every design decision is backed by usability principles and your brand guidelines.",
+    features: ["User research & personas", "Wireframing & prototyping", "High-fidelity mockups", "Design system creation", "Developer handoff files"],
+    createdAt: 3,
+  },
+  {
+    _id: "4", name: "Brand Identity Package", slug: "brand-identity", category: "Design", price: 3499, priceUnit: "one-time",
+    description: "Complete brand identity systems — logo, color palette, typography, and usage guidelines.",
+    longDescription: "Your brand is more than a logo. We build cohesive identity systems that communicate your values at every touchpoint. The package includes logo design (primary, secondary, and icon variants), a defined color palette with HEX/RGB values, typography selection, and a brand guidelines document your team can reference for years.",
+    features: ["Logo (3 variants)", "Color palette & tokens", "Typography system", "Brand guidelines PDF", "Social media kit"],
+    createdAt: 4,
+  },
+  {
+    _id: "5", name: "Roblox Development", slug: "roblox-development", category: "Development", price: 4999, priceUnit: "one-time",
+    description: "Game systems, scripts, UI design, and complete Roblox experiences from concept to publish.",
+    longDescription: "We build Roblox experiences that players love. From game mechanics and UI systems to full world-building and scripting, our team handles every aspect of Roblox development. We work in Luau, follow Roblox best practices, and optimize for performance across all devices.",
+    features: ["Game mechanics & scripting", "Custom UI/UX design", "3D environment building", "Performance optimization", "Publishing support"],
+    createdAt: 5,
+  },
+  {
+    _id: "6", name: "Workflow Automation", slug: "workflow-automation", category: "Automation", price: 1499, priceUnit: "one-time",
+    description: "Automate repetitive tasks with custom dashboards, bots, and integration workflows.",
+    longDescription: "Stop doing the same thing every day. We build automation systems that connect your tools, eliminate manual work, and give you dashboards to monitor everything. From Discord webhook integrations to full pipeline automations, we make your operations run themselves.",
+    features: ["Custom automation flows", "Tool integrations", "Monitoring dashboards", "Error handling & alerts", "Documentation & training"],
+    createdAt: 6,
+  },
+  {
+    _id: "7", name: "Monthly Retainer", slug: "monthly-retainer", category: "Support", price: 9999, priceUnit: "per month",
+    description: "Ongoing development and support partnership. Priority access, unlimited small tasks, and a dedicated point of contact.",
+    longDescription: "For teams that need continuous support without the overhead of hiring. Our monthly retainer gives you priority access to our team, unlimited small tasks (bug fixes, tweaks, updates), and a dedicated project manager. Larger projects are scoped separately with preferential pricing.",
+    features: ["Priority support channel", "Unlimited small tasks", "Dedicated project manager", "Weekly progress reports", "Preferential pricing on projects"],
+    createdAt: 7,
+  },
+  {
+    _id: "8", name: "Content & Marketing", slug: "content-marketing", category: "Marketing", price: 1999, priceUnit: "one-time",
+    description: "Social media content, marketing strategies, and digital campaigns that drive real engagement.",
+    longDescription: "We create content that stops the scroll. From social media graphics and copywriting to full campaign strategy, our marketing team builds narratives that connect with your audience. Every piece is designed to match your brand voice and drive measurable results.",
+    features: ["Content strategy", "Social media graphics", "Copywriting & captions", "Campaign planning", "Performance analytics"],
+    createdAt: 8,
+  },
+];
+
+type Service = (typeof CATALOG)[number];
 
 const bgGradients: Record<string, string> = {
   Development: "from-cyan-500/20 to-blue-500/20",
@@ -26,12 +86,12 @@ const categoryColors: Record<string, string> = {
   Support: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
 };
 
+const ALL_CATEGORIES = [...new Set(CATALOG.map((s) => s.category))].sort();
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20, scale: 0.98 },
   visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
+    opacity: 1, y: 0, scale: 1,
     transition: { duration: 0.4, delay: i * 0.05, ease: [0.25, 0.4, 0.25, 1] as const },
   }),
 };
@@ -44,56 +104,23 @@ export default function Catalog() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "name">("newest");
 
-  const categories = useQuery(api.services.categories);
-  const services = useQuery(api.services.list, {
-    category: selectedCategory ?? undefined,
-    search: search || undefined,
-  });
-  const seedMutation = useMutation(api.services.seed);
-  const [seeding, setSeeding] = useState(false);
-
-  // Auto-seed if catalog is empty
-  useEffect(() => {
-    if (services && services.length === 0 && !seeding) {
-      console.log("[Catalog] No services found, seeding database...");
-      setSeeding(true);
-      seedMutation()
-        .then((result) => {
-          console.log("[Catalog] Seed result:", result);
-        })
-        .catch((err) => {
-          console.error("[Catalog] Seed failed:", err);
-        })
-        .finally(() => setSeeding(false));
-    }
-  }, [services, seedMutation, seeding]);
-
-  // Sort and filter services
   const filteredServices = useMemo(() => {
-    if (!services) return [];
-    let result = services.filter(
-      (s) => s.price >= priceRange[0] && s.price <= priceRange[1]
-    );
+    let result = CATALOG.filter((s) => {
+      const matchCategory = !selectedCategory || s.category === selectedCategory;
+      const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.description.toLowerCase().includes(search.toLowerCase()) || s.category.toLowerCase().includes(search.toLowerCase());
+      const matchPrice = s.price >= priceRange[0] && s.price <= priceRange[1];
+      return matchCategory && matchSearch && matchPrice;
+    });
     switch (sortBy) {
-      case "price-low":
-        result = [...result].sort((a, b) => a.price - b.price);
-        break;
-      case "price-high":
-        result = [...result].sort((a, b) => b.price - a.price);
-        break;
-      case "name":
-        result = [...result].sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      default:
-        result = [...result].sort((a, b) => b.createdAt - a.createdAt);
+      case "price-low": result = [...result].sort((a, b) => a.price - b.price); break;
+      case "price-high": result = [...result].sort((a, b) => b.price - a.price); break;
+      case "name": result = [...result].sort((a, b) => a.name.localeCompare(b.name)); break;
+      default: result = [...result].sort((a, b) => b.createdAt - a.createdAt);
     }
     return result;
-  }, [services, sortBy, priceRange]);
+  }, [search, selectedCategory, sortBy, priceRange]);
 
-  const activeFilterCount =
-    (selectedCategory ? 1 : 0) +
-    (priceRange[0] > 0 || priceRange[1] < 50000 ? 1 : 0) +
-    (sortBy !== "newest" ? 1 : 0);
+  const activeFilterCount = (selectedCategory ? 1 : 0) + (priceRange[1] < 50000 ? 1 : 0) + (sortBy !== "newest" ? 1 : 0);
 
   return (
     <div className="noise-overlay min-h-screen bg-background text-foreground">
@@ -201,19 +228,18 @@ export default function Catalog() {
             >
               <div className="rounded-2xl border border-border/40 bg-card/30 p-5 backdrop-blur-sm">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                  {/* Category Pills */}
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-medium text-muted-foreground">Category</label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setSelectedCategory(null)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                          !selectedCategory ? "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-foreground ring-1 ring-cyan-500/20" : "text-muted-foreground hover:text-foreground border border-transparent"
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all border ${
+                          !selectedCategory ? "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-foreground ring-1 ring-cyan-500/20 border-transparent" : "text-muted-foreground hover:text-foreground border-transparent"
                         }`}
                       >
                         All
                       </button>
-                      {categories?.map((cat) => (
+                      {ALL_CATEGORIES.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
@@ -226,33 +252,14 @@ export default function Catalog() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Price Range */}
                   <div className="w-full sm:w-48">
                     <label className="mb-2 block text-xs font-medium text-muted-foreground">Max Price: ₹{priceRange[1].toLocaleString()}</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={50000}
-                      step={500}
-                      value={priceRange[1]}
-                      onChange={(e) => setPriceRange([0, Number(e.target.value)])}
-                      className="w-full accent-cyan-500"
-                    />
-                    <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                      <span>₹0</span>
-                      <span>₹50,000</span>
-                    </div>
+                    <input type="range" min={0} max={50000} step={500} value={priceRange[1]} onChange={(e) => setPriceRange([0, Number(e.target.value)])} className="w-full accent-cyan-500" />
+                    <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>₹0</span><span>₹50,000</span></div>
                   </div>
-
-                  {/* Sort */}
                   <div className="w-full sm:w-40">
                     <label className="mb-2 block text-xs font-medium text-muted-foreground">Sort by</label>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                      className="w-full rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-xs text-foreground outline-none focus:border-cyan-500/50"
-                    >
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="w-full rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-xs text-foreground outline-none focus:border-cyan-500/50">
                       <option value="newest">Newest first</option>
                       <option value="price-low">Price: Low to High</option>
                       <option value="price-high">Price: High to Low</option>
@@ -260,7 +267,6 @@ export default function Catalog() {
                     </select>
                   </div>
                 </div>
-
                 {activeFilterCount > 0 && (
                   <div className="mt-4 flex items-center gap-2 border-t border-border/30 pt-4">
                     <button onClick={() => { setSelectedCategory(null); setPriceRange([0, 50000]); setSortBy("newest"); }} className="text-xs text-cyan-400 hover:text-cyan-300">Clear all filters</button>
@@ -282,7 +288,7 @@ export default function Catalog() {
             )}
             {search && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
-                "{search}"
+                &ldquo;{search}&rdquo;
                 <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
               </span>
             )}
@@ -290,36 +296,15 @@ export default function Catalog() {
         )}
 
         {/* Results */}
-        {services === undefined || seeding ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-            <p className="mt-4 text-sm text-muted-foreground">{seeding ? "Setting up your catalog..." : "Loading services..."}</p>
-          </div>
-        ) : filteredServices.length === 0 ? (
+        {filteredServices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-border/40 bg-card/30">
               <Search className="h-7 w-7 text-muted-foreground" />
             </div>
             <p className="text-lg font-medium">No services found</p>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {search ? `No results for "${search}". Try a different keyword.` : "The catalog is empty. Let's set it up."}
+              {search ? `No results for "${search}". Try a different keyword.` : "Try adjusting your filters or search terms."}
             </p>
-            {!search && !selectedCategory && (
-              <button
-                onClick={() => {
-                  setSeeding(true);
-                  seedMutation()
-                    .then((r) => console.log("Manual seed:", r))
-                    .catch((e) => console.error("Manual seed error:", e))
-                    .finally(() => setSeeding(false));
-                }}
-                disabled={seeding}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {seeding ? "Seeding..." : "Seed Database"}
-              </button>
-            )}
             {(search || selectedCategory) && (
               <button onClick={() => { setSearch(""); setSelectedCategory(null); setPriceRange([0, 50000]); }} className="mt-4 text-sm text-cyan-400 hover:text-cyan-300">Clear all filters</button>
             )}
@@ -342,8 +327,6 @@ export default function Catalog() {
                   </div>
                   <h3 className="text-base font-semibold transition-colors group-hover:text-foreground">{service.name}</h3>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-2">{service.description}</p>
-
-                  {/* Features preview */}
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {service.features.slice(0, 3).map((f) => (
                       <span key={f} className="rounded-md bg-card/50 px-2 py-0.5 text-[10px] text-muted-foreground">{f}</span>
@@ -352,7 +335,6 @@ export default function Catalog() {
                       <span className="rounded-md bg-card/50 px-2 py-0.5 text-[10px] text-muted-foreground">+{service.features.length - 3} more</span>
                     )}
                   </div>
-
                   <div className="mt-5 flex items-center justify-between border-t border-border/30 pt-4">
                     <div>
                       <span className="text-xl font-bold tracking-tight">₹{service.price.toLocaleString()}</span>
@@ -367,7 +349,6 @@ export default function Catalog() {
             ))}
           </div>
         ) : (
-          /* List View */
           <div className="space-y-3">
             {filteredServices.map((service, i) => (
               <motion.div key={service._id} initial="hidden" animate="visible" variants={fadeUp} custom={i}>
@@ -398,10 +379,9 @@ export default function Catalog() {
           </div>
         )}
 
-        {/* Results count */}
         {filteredServices.length > 0 && (
           <div className="mt-8 text-center text-xs text-muted-foreground">
-            Showing {filteredServices.length} of {services?.length ?? 0} services
+            Showing {filteredServices.length} of {CATALOG.length} services
           </div>
         )}
       </div>
