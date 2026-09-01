@@ -2,14 +2,22 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams, Link } from "react-router";
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Check, Calendar, Clock, Send, Loader2, MessageSquare } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Check, Calendar, Clock, Send, Loader2, MessageSquare, Star, Shield, Zap, Users, ArrowRight } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
+
+const categoryColors: Record<string, string> = {
+  Development: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  Design: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  Automation: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  Marketing: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  Support: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+};
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -22,7 +30,6 @@ export default function ServiceDetail() {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
 
-  // Booking form state
   const [bookDate, setBookDate] = useState("");
   const [bookTime, setBookTime] = useState("");
   const [bookNotes, setBookNotes] = useState("");
@@ -59,7 +66,7 @@ export default function ServiceDetail() {
   if (service === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
       </div>
     );
   }
@@ -68,8 +75,12 @@ export default function ServiceDetail() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="text-center">
+          <div className="mb-4 flex size-16 items-center justify-center mx-auto rounded-2xl border border-border/40 bg-card/30">
+            <span className="text-2xl">🔍</span>
+          </div>
           <p className="text-lg font-medium">Service not found</p>
-          <Link to="/catalog" className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
+          <p className="mt-1 text-sm text-muted-foreground">This service may have been removed or the link is incorrect.</p>
+          <Link to="/catalog" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
             <ArrowLeft className="h-4 w-4" /> Back to catalog
           </Link>
         </div>
@@ -81,7 +92,7 @@ export default function ServiceDetail() {
     <div className="noise-overlay min-h-screen bg-background text-foreground">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
             <img src={logo} alt="Logo" className="h-9 w-9" />
             <span className="text-lg font-bold tracking-tight">Launch<span className="gradient-text">Pulse</span><span className="text-xs font-normal text-muted-foreground ml-0.5">.studio</span></span>
@@ -91,7 +102,9 @@ export default function ServiceDetail() {
             <Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Dashboard</Link>
           </div>
           <div className="hidden sm:block">
-            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">Get a Quote <MessageSquare className="h-4 w-4" /></a>
+            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+              Get a Quote <MessageSquare className="h-3.5 w-3.5" />
+            </a>
           </div>
           <Sheet>
             <SheetTrigger asChild>
@@ -104,57 +117,115 @@ export default function ServiceDetail() {
               <div className="flex flex-col gap-1 pt-12">
                 <SheetClose asChild><Link to="/catalog" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">Catalog</Link></SheetClose>
                 <SheetClose asChild><Link to="/dashboard" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">Dashboard</Link></SheetClose>
+                <SheetClose asChild><a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">Get a Quote</a></SheetClose>
               </div>
             </SheetContent>
           </Sheet>
         </div>
       </nav>
 
-      <div className="mx-auto max-w-6xl px-6 pt-28 pb-20">
+      <div className="mx-auto max-w-7xl px-6 pt-28 pb-20">
         {/* Breadcrumb */}
-        <Link to="/catalog" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to catalog
-        </Link>
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+          <Link to="/catalog" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Back to catalog
+          </Link>
+        </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main content */}
-          <div className="lg:col-span-2">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <span className="mb-3 inline-block rounded-md bg-card/60 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{service.category}</span>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{service.name}</h1>
-              <p className="mt-4 text-muted-foreground leading-relaxed">{service.longDescription}</p>
+          <div className="lg:col-span-2 space-y-10">
+            {/* Hero */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider ${categoryColors[service.category] ?? "bg-card/60 text-muted-foreground"}`}>
+                  {service.category}
+                </span>
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, j) => <Star key={j} className="h-3 w-3 fill-yellow-500/60 text-yellow-500/60" />)}
+                  <span className="ml-1 text-[10px] text-muted-foreground">5.0</span>
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">{service.name}</h1>
+              <p className="mt-5 text-muted-foreground leading-relaxed text-lg">{service.longDescription}</p>
+            </motion.div>
+
+            {/* Stats Row */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
+              {[
+                { icon: Zap, label: "Fast Delivery", value: "24-48h" },
+                { icon: Shield, label: "Revisions", value: "Included" },
+                { icon: Users, label: "Support", value: "Post-launch" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl border border-border/30 bg-card/20 p-4 text-center">
+                  <stat.icon className="mx-auto mb-2 h-4 w-4 text-cyan-400" />
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  <p className="mt-0.5 text-sm font-semibold">{stat.value}</p>
+                </div>
+              ))}
             </motion.div>
 
             {/* Features */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-10">
-              <h2 className="mb-4 text-lg font-semibold">What&apos;s included</h2>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <h2 className="mb-5 text-lg font-semibold">What&apos;s included</h2>
               <div className="grid gap-3 sm:grid-cols-2">
-                {service.features.map((f) => (
-                  <div key={f} className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/20 px-4 py-3">
-                    <Check className="h-4 w-4 shrink-0 text-cyan-400" />
+                {service.features.map((f, idx) => (
+                  <motion.div
+                    key={f}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + idx * 0.05 }}
+                    className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/20 px-4 py-3.5 transition-all hover:bg-card/40"
+                  >
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
+                      <Check className="h-3.5 w-3.5 text-cyan-400" />
+                    </div>
                     <span className="text-sm text-muted-foreground">{f}</span>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </motion.div>
 
-            {/* Comments / Messages */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-12">
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            {/* Discussion */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
                 <MessageSquare className="h-5 w-5 text-cyan-400" />
                 Discussion
+                {messages && messages.length > 0 && (
+                  <span className="ml-2 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{messages.length}</span>
+                )}
               </h2>
 
-              <div className="space-y-4">
-                {messages && messages.length === 0 && (
-                  <p className="rounded-xl border border-border/30 bg-card/20 p-4 text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
-                )}
-                {messages?.map((msg) => (
-                  <div key={msg._id} className="rounded-xl border border-border/30 bg-card/20 p-4">
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
-                    <p className="mt-2 text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {messages && messages.length === 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border/30 bg-card/20 p-6 text-center">
+                      <MessageSquare className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
+                    </motion.div>
+                  )}
+                  {messages?.map((msg) => (
+                    <motion.div
+                      key={msg._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl border border-border/30 bg-card/20 p-5"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-xs font-bold text-foreground/70">
+                          {msg.userId.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">User</span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleString()}</span>
+                          </div>
+                          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{msg.content}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
 
               {user ? (
@@ -164,37 +235,46 @@ export default function ServiceDetail() {
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder="Write a message..."
-                    className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                    className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
                   />
-                  <button type="submit" disabled={sending || !messageText.trim()} className="inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
+                  <button type="submit" disabled={sending || !messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
                     <Send className="h-4 w-4" />
                   </button>
                 </form>
               ) : (
-                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">Get a quote on Discord <MessageSquare className="h-3 w-3" /></a>
+                <div className="mt-4 rounded-xl border border-border/30 bg-card/20 p-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    <Link to="/auth" className="text-cyan-400 hover:text-cyan-300">Sign in</Link> to leave a message, or{" "}
+                    <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">get a quote on Discord</a>
+                  </p>
+                </div>
               )}
             </motion.div>
           </div>
 
           {/* Sidebar — Booking */}
           <div className="lg:col-span-1">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="sticky top-24 rounded-2xl border border-border/40 bg-card/30 p-6 backdrop-blur-sm">
-              <div className="mb-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="sticky top-24 rounded-2xl border border-border/40 bg-card/30 p-6 backdrop-blur-sm space-y-6">
+              {/* Price */}
+              <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-bold tracking-tight">₹{service.price.toLocaleString()}</span>
+                  <span className="text-4xl font-bold tracking-tight">₹{service.price.toLocaleString()}</span>
                   <span className="text-sm text-muted-foreground">/ {service.priceUnit}</span>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">Custom scope available — discuss on Discord</p>
               </div>
 
+              {/* Booking Form */}
               {user ? (
                 bookingSubmitted ? (
-                  <div className="flex flex-col items-center py-8 text-center">
-                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-cyan-500/10">
-                      <Calendar className="h-5 w-5 text-cyan-400" />
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-8 text-center">
+                    <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-cyan-500/10">
+                      <Calendar className="h-6 w-6 text-cyan-400" />
                     </div>
                     <p className="text-sm font-semibold">Booking submitted!</p>
                     <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your session within the hour.</p>
-                  </div>
+                    <Link to="/dashboard" className="mt-4 text-xs text-cyan-400 hover:text-cyan-300">View in dashboard →</Link>
+                  </motion.div>
                 ) : (
                   <form onSubmit={handleBook} className="flex flex-col gap-4">
                     <div>
@@ -207,7 +287,7 @@ export default function ServiceDetail() {
                           required
                           value={bookDate}
                           onChange={(e) => setBookDate(e.target.value)}
-                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
                         />
                       </div>
                     </div>
@@ -220,7 +300,7 @@ export default function ServiceDetail() {
                           required
                           value={bookTime}
                           onChange={(e) => setBookTime(e.target.value)}
-                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                          className="w-full rounded-xl border border-border/50 bg-card/60 py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
                         >
                           <option value="">Select a time</option>
                           {timeSlots.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -228,14 +308,14 @@ export default function ServiceDetail() {
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="book-notes" className="mb-1.5 block text-xs font-medium text-muted-foreground">Notes (optional)</label>
+                      <label htmlFor="book-notes" className="mb-1.5 block text-xs font-medium text-muted-foreground">Project details (optional)</label>
                       <textarea
                         id="book-notes"
                         rows={3}
                         value={bookNotes}
                         onChange={(e) => setBookNotes(e.target.value)}
-                        placeholder="Any details about your project..."
-                        className="w-full rounded-xl border border-border/50 bg-card/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                        placeholder="Describe your project, goals, and any specific requirements..."
+                        className="w-full rounded-xl border border-border/50 bg-card/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
                       />
                     </div>
                     <button
@@ -248,10 +328,31 @@ export default function ServiceDetail() {
                   </form>
                 )
               ) : (
-                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
-                  Get a Quote on Discord <MessageSquare className="h-4 w-4" />
-                </a>
+                <div className="space-y-3">
+                  <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
+                    Get a Quote on Discord <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <Link to="/auth" className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-card/20 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/40">
+                    Sign in to Book
+                  </Link>
+                </div>
               )}
+
+              {/* Quick Info */}
+              <div className="space-y-3 border-t border-border/30 pt-5">
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Zap className="h-4 w-4 shrink-0 text-cyan-400" />
+                  <span>24-48 hour turnaround</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Shield className="h-4 w-4 shrink-0 text-cyan-400" />
+                  <span>Revisions included</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <MessageSquare className="h-4 w-4 shrink-0 text-cyan-400" />
+                  <span>Discord support</span>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
