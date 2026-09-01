@@ -14,6 +14,8 @@ import {
   Shield,
   Clock,
   Headphones,
+  Send,
+  Layers,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -26,42 +28,82 @@ const fadeUp = {
   }),
 };
 
+const stagger = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
 const services = [
   {
     icon: Globe,
     title: "Website Development",
     description: "Custom, responsive websites built with modern tech stacks. From landing pages to full web applications.",
-    gradient: "from-cyan-500/20 to-blue-500/20",
+    gradient: "from-cyan-500 to-blue-500",
+    bgGradient: "from-cyan-500/15 to-blue-500/15",
   },
   {
     icon: Bot,
     title: "Discord & Bot Development",
     description: "Custom Discord bots, server setups, ticket systems, and automation solutions for communities.",
-    gradient: "from-blue-500/20 to-indigo-500/20",
+    gradient: "from-blue-500 to-indigo-500",
+    bgGradient: "from-blue-500/15 to-indigo-500/15",
   },
   {
     icon: Palette,
     title: "Graphics & Branding",
     description: "Logos, brand identity, UI/UX design, and motion graphics that make your brand stand out.",
-    gradient: "from-indigo-500/20 to-purple-500/20",
+    gradient: "from-indigo-500 to-purple-500",
+    bgGradient: "from-indigo-500/15 to-purple-500/15",
   },
   {
     icon: Code,
     title: "Roblox Development",
     description: "Game systems, scripts, UI design, and complete Roblox experiences from concept to publish.",
-    gradient: "from-purple-500/20 to-pink-500/20",
+    gradient: "from-purple-500 to-pink-500",
+    bgGradient: "from-purple-500/15 to-pink-500/15",
   },
   {
     icon: Cog,
     title: "Automations & Dashboards",
     description: "Workflow automations, custom dashboards, and tools that streamline your operations.",
-    gradient: "from-pink-500/20 to-rose-500/20",
+    gradient: "from-pink-500 to-rose-500",
+    bgGradient: "from-pink-500/15 to-rose-500/15",
   },
   {
     icon: MessageSquare,
     title: "Content & Marketing",
     description: "Social media content, marketing strategies, and digital campaigns that drive growth.",
-    gradient: "from-rose-500/20 to-cyan-500/20",
+    gradient: "from-rose-500 to-cyan-500",
+    bgGradient: "from-rose-500/15 to-cyan-500/15",
+  },
+];
+
+const processSteps = [
+  {
+    step: "01",
+    title: "Tell us your vision",
+    description: "Share your idea on Discord or email. We'll ask the right questions to understand your scope.",
+    icon: Send,
+  },
+  {
+    step: "02",
+    title: "We scope & plan",
+    description: "Clear timeline, transparent pricing, and a defined deliverable — no surprises.",
+    icon: Layers,
+  },
+  {
+    step: "03",
+    title: "We build & deliver",
+    description: "Fast turnaround with revisions included. You review, we refine until it's perfect.",
+    icon: Zap,
   },
 ];
 
@@ -142,14 +184,14 @@ const stats = [
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="noise-overlay min-h-screen bg-background text-foreground overflow-hidden">
       {/* ─── Navbar ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <a href="/" className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
             <img src={logo} alt="Logo" className="h-9 w-9" />
             <span className="text-lg font-bold tracking-tight">
-              Nex<span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">Dev</span>
+              Nex<span className="gradient-text">Dev</span>
             </span>
           </a>
           <div className="hidden items-center gap-8 md:flex">
@@ -177,14 +219,27 @@ export default function Landing() {
       <section className="relative flex min-h-screen items-center justify-center px-6 pt-16">
         {/* Background glow effects */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-1/3 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/8 blur-[120px]" />
-          <div className="absolute right-1/4 top-1/2 h-[500px] w-[500px] rounded-full bg-purple-500/8 blur-[120px]" />
+          <div className="absolute left-1/2 top-[20%] h-[700px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/[0.07] blur-[150px]" />
+          <div className="absolute right-[15%] top-[40%] h-[500px] w-[500px] rounded-full bg-purple-500/[0.06] blur-[130px]" />
+          <div className="absolute left-[10%] top-[60%] h-[400px] w-[400px] rounded-full bg-blue-500/[0.04] blur-[120px]" />
+          {/* Grid pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+              backgroundSize: "60px 60px",
+            }}
+          />
         </div>
 
         <div className="relative z-10 mx-auto max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/50 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
-              <Zap className="h-3.5 w-3.5 text-cyan-400" />
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+              </span>
               Build. Support. Scale.
             </div>
           </motion.div>
@@ -193,11 +248,11 @@ export default function Landing() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl md:text-7xl"
+            className="text-5xl font-bold leading-[1.08] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl"
           >
             We build digital
             <br />
-            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+            <span className="gradient-text">
               solutions that scale
             </span>
           </motion.h1>
@@ -206,7 +261,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
+            className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
             From Discord bots and websites to branding and automations — we deliver
             polished digital products with clear scope, fast turnaround, and premium quality.
@@ -220,14 +275,14 @@ export default function Landing() {
           >
             <a
               href="#pricing"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110"
             >
               View Pricing
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </a>
             <a
               href="#services"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/30 px-8 py-3 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border hover:text-foreground"
+              className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/20 px-8 py-3.5 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border/80 hover:text-foreground hover:bg-card/40"
             >
               Explore Services
             </a>
@@ -238,19 +293,68 @@ export default function Landing() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="mx-auto mt-20 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4"
+            className="mx-auto mt-24 grid max-w-2xl grid-cols-2 gap-8 sm:grid-cols-4"
           >
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
-                <div className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                <div className="text-3xl font-bold tracking-tight gradient-text">
                   {stat.value}
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">{stat.label}</div>
+                <div className="mt-1.5 text-xs text-muted-foreground">{stat.label}</div>
               </div>
             ))}
           </motion.div>
         </div>
       </section>
+
+      {/* ─── How It Works ─── */}
+      <section className="relative px-6 py-28">
+        <div className="mx-auto max-w-6xl">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center"
+          >
+            <motion.div variants={fadeUp} custom={0} className="mb-3 text-xs font-medium uppercase tracking-widest text-cyan-400">
+              How It Works
+            </motion.div>
+            <motion.h2 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple process, exceptional results
+            </motion.h2>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={stagger}
+            className="mt-16 grid gap-8 md:grid-cols-3"
+          >
+            {processSteps.map((step) => (
+              <motion.div key={step.step} variants={item} className="relative text-center">
+                {/* Connector line */}
+                <div className="absolute left-[calc(50%+40px)] top-8 hidden h-px w-[calc(100%-80px)] bg-gradient-to-r from-border/60 to-transparent md:block" />
+                <div className="mx-auto mb-5 inline-flex size-16 items-center justify-center rounded-2xl border border-border/50 bg-card/60 backdrop-blur-sm">
+                  <step.icon className="h-6 w-6 text-cyan-400" />
+                </div>
+                <div className="mb-2 text-xs font-bold uppercase tracking-widest text-purple-400">
+                  Step {step.step}
+                </div>
+                <h3 className="text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {step.description}
+                </p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── Divider ─── */}
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+      </div>
 
       {/* ─── Services ─── */}
       <section id="services" className="relative px-6 py-28">
@@ -281,10 +385,10 @@ export default function Landing() {
                 viewport={{ once: true, margin: "-50px" }}
                 variants={fadeUp}
                 custom={i}
-                className="group relative rounded-2xl border border-border/50 bg-card/40 p-7 backdrop-blur-sm transition-all duration-300 hover:border-border hover:bg-card/70 hover:shadow-lg hover:shadow-purple-500/5"
+                className="gradient-border group relative rounded-2xl border border-border/40 bg-card/30 p-7 backdrop-blur-sm transition-all duration-300 hover:bg-card/60 hover:shadow-xl hover:shadow-purple-500/[0.04]"
               >
                 <div
-                  className={`mb-5 inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-br ${service.gradient}`}
+                  className={`mb-5 inline-flex size-12 items-center justify-center rounded-xl bg-gradient-to-br ${service.bgGradient}`}
                 >
                   <service.icon className="h-5 w-5 text-foreground/80" />
                 </div>
@@ -292,8 +396,8 @@ export default function Landing() {
                 <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
                   {service.description}
                 </p>
-                <div className="mt-5 flex items-center gap-1 text-xs font-medium text-cyan-400 opacity-0 transition-opacity group-hover:opacity-100">
-                  Learn more <ArrowRight className="h-3 w-3" />
+                <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-cyan-400 opacity-0 transition-all duration-300 group-hover:opacity-100">
+                  Learn more <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </motion.div>
             ))}
@@ -305,7 +409,7 @@ export default function Landing() {
       <section id="pricing" className="relative px-6 py-28">
         {/* Background accent */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-0 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-purple-500/5 blur-[100px]" />
+          <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-purple-500/[0.04] blur-[120px]" />
         </div>
 
         <div className="relative z-10 mx-auto max-w-6xl">
@@ -337,24 +441,24 @@ export default function Landing() {
                 custom={i}
                 className={`relative flex flex-col rounded-2xl border p-8 transition-all duration-300 ${
                   plan.highlighted
-                    ? "border-cyan-500/30 bg-gradient-to-b from-card/80 to-card/40 shadow-xl shadow-cyan-500/10"
-                    : "border-border/50 bg-card/40 hover:border-border hover:bg-card/60"
+                    ? "border-cyan-500/30 bg-gradient-to-b from-cyan-500/[0.06] via-card/60 to-card/40 shadow-2xl shadow-cyan-500/[0.08]"
+                    : "border-border/40 bg-card/30 hover:border-border/70 hover:bg-card/50"
                 }`}
               >
                 {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-1 text-xs font-semibold text-white">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-1 text-xs font-semibold text-white shadow-lg shadow-purple-500/25">
                     Most Popular
                   </div>
                 )}
                 <div>
                   <h3 className="text-lg font-semibold">{plan.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{plan.description}</p>
                 </div>
                 <div className="mt-6 flex items-baseline gap-1.5">
                   <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
                   <span className="text-sm text-muted-foreground">/ {plan.period}</span>
                 </div>
-                <ul className="mt-8 flex-1 space-y-3">
+                <ul className="mt-8 flex-1 space-y-3.5">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
@@ -367,7 +471,7 @@ export default function Landing() {
                   className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${
                     plan.highlighted
                       ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:brightness-110"
-                      : "border border-border/60 bg-card/30 text-foreground hover:border-border hover:bg-card/60"
+                      : "border border-border/50 bg-card/20 text-foreground hover:border-border/80 hover:bg-card/50"
                   }`}
                 >
                   Get Started
@@ -378,6 +482,11 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ─── Divider ─── */}
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+      </div>
 
       {/* ─── Why Choose Us ─── */}
       <section className="relative px-6 py-28">
@@ -396,7 +505,7 @@ export default function Landing() {
             </motion.h2>
           </motion.div>
 
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: Zap, title: "Fast Delivery", desc: "Most projects completed within 24-48 hours." },
               { icon: Shield, title: "Quality Assured", desc: "Every deliverable goes through our quality check." },
@@ -410,7 +519,7 @@ export default function Landing() {
                 viewport={{ once: true, margin: "-50px" }}
                 variants={fadeUp}
                 custom={i}
-                className="rounded-2xl border border-border/50 bg-card/40 p-6 text-center backdrop-blur-sm"
+                className="gradient-border rounded-2xl border border-border/40 bg-card/30 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:bg-card/50"
               >
                 <div className="mx-auto mb-4 inline-flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10">
                   <item.icon className="h-5 w-5 text-cyan-400" />
@@ -440,7 +549,7 @@ export default function Landing() {
             </motion.h2>
           </motion.div>
 
-          <div className="mt-16 grid gap-6 md:grid-cols-3">
+          <div className="mt-16 grid gap-5 md:grid-cols-3">
             {testimonials.map((t, i) => (
               <motion.div
                 key={i}
@@ -449,9 +558,9 @@ export default function Landing() {
                 viewport={{ once: true, margin: "-50px" }}
                 variants={fadeUp}
                 custom={i}
-                className="rounded-2xl border border-border/50 bg-card/40 p-7 backdrop-blur-sm"
+                className="gradient-border rounded-2xl border border-border/40 bg-card/30 p-7 backdrop-blur-sm transition-all duration-300 hover:bg-card/50"
               >
-                <div className="mb-4 flex gap-1">
+                <div className="mb-4 flex gap-0.5">
                   {[...Array(5)].map((_, j) => (
                     <Star key={j} className="h-4 w-4 fill-yellow-500/80 text-yellow-500/80" />
                   ))}
@@ -459,7 +568,7 @@ export default function Landing() {
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   &ldquo;{t.quote}&rdquo;
                 </p>
-                <div className="mt-6 border-t border-border/50 pt-4">
+                <div className="mt-6 border-t border-border/40 pt-4">
                   <div className="text-sm font-medium">{t.author}</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">{t.service}</div>
                 </div>
@@ -480,44 +589,50 @@ export default function Landing() {
             <motion.div
               variants={fadeUp}
               custom={0}
-              className="rounded-3xl border border-border/50 bg-gradient-to-b from-card/60 to-card/30 px-8 py-16 backdrop-blur-sm sm:px-16"
+              className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-b from-card/50 to-card/20 px-8 py-16 backdrop-blur-sm sm:px-16"
             >
-              <motion.h2 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Ready to start your project?
-              </motion.h2>
-              <motion.p variants={fadeUp} custom={2} className="mx-auto mt-4 max-w-md text-muted-foreground">
-                Let's discuss your vision. We'll scope it out, give you a clear timeline, and deliver exactly what you need.
-              </motion.p>
-              <motion.div variants={fadeUp} custom={3} className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <a
-                  href="https://discord.gg/yourserver"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Contact on Discord
-                </a>
-                <a
-                  href="mailto:hello@nexdev.com"
-                  className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/30 px-8 py-3 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border hover:text-foreground"
-                >
-                  Email Us
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-              </motion.div>
+              {/* CTA background glow */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute left-1/2 top-0 h-[300px] w-[500px] -translate-x-1/2 rounded-full bg-purple-500/[0.06] blur-[80px]" />
+              </div>
+              <div className="relative z-10">
+                <motion.h2 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  Ready to start your project?
+                </motion.h2>
+                <motion.p variants={fadeUp} custom={2} className="mx-auto mt-4 max-w-md text-muted-foreground">
+                  Let's discuss your vision. We'll scope it out, give you a clear timeline, and deliver exactly what you need.
+                </motion.p>
+                <motion.div variants={fadeUp} custom={3} className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                  <a
+                    href="https://discord.gg/yourserver"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:brightness-110"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Contact on Discord
+                  </a>
+                  <a
+                    href="mailto:hello@nexdev.com"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/20 px-8 py-3.5 text-sm font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-border/80 hover:text-foreground hover:bg-card/40"
+                  >
+                    Email Us
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </motion.div>
+              </div>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-border/50 px-6 py-12">
+      <footer className="border-t border-border/40 px-6 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Logo" className="h-7 w-7" />
             <span className="text-sm font-semibold">
-              Nex<span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">Dev</span>
+              Nex<span className="gradient-text">Dev</span>
             </span>
           </div>
           <div className="flex gap-6">
