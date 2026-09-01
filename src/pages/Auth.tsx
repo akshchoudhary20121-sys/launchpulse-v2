@@ -110,13 +110,17 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="noise-overlay min-h-screen flex flex-col bg-background text-foreground">
+      {/* Background glow */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/[0.06] blur-[120px]" />
+        <div className="absolute right-1/4 top-1/2 h-[400px] w-[400px] rounded-full bg-purple-500/[0.05] blur-[110px]" />
+      </div>
 
-      
       {/* Auth Content */}
-      <div className="flex-1 flex items-center justify-center">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-6">
         <div className="flex items-center justify-center h-full flex-col">
-        <Card className="min-w-[350px] pb-0 border shadow-md">
+        <Card className="min-w-[350px] pb-0 border border-border/40 bg-card/40 backdrop-blur-xl shadow-2xl shadow-purple-500/[0.04]">
           {step === "signIn" ? (
             <>
               <CardHeader className="text-center">
@@ -130,9 +134,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       onClick={() => navigate("/")}
                     />
                   </div>
-                <CardTitle className="text-xl">Get Started</CardTitle>
+                <CardTitle className="text-xl">Welcome to LaunchPulse</CardTitle>
                 <CardDescription>
-                  Enter your email to log in or sign up
+                  Sign in or create an account to get started
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleEmailSubmit}>
@@ -277,13 +281,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
             </>
           )}
 
-          <div className="py-4 px-6 text-xs text-center text-muted-foreground bg-muted/50 border-t border-border/50 rounded-b-lg">
+          <div className="py-4 px-6 text-xs text-center text-muted-foreground bg-muted/30 border-t border-border/40 rounded-b-lg">
             Secured by{" "}
             <a
               href="https://freebuff.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-primary transition-colors"
+              className="underline hover:text-cyan-400 transition-colors"
             >
               freebuff.com
             </a>

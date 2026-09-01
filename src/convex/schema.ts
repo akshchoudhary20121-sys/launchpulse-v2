@@ -32,12 +32,49 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
+    services: defineTable({
+      name: v.string(),
+      slug: v.string(),
+      description: v.string(),
+      longDescription: v.string(),
+      category: v.string(),
+      price: v.number(),
+      priceUnit: v.string(),
+      features: v.array(v.string()),
+      status: v.union(
+        v.literal("active"),
+        v.literal("draft"),
+        v.literal("archived")
+      ),
+      createdAt: v.number(),
+      image: v.optional(v.string()),
+    })
+      .index("by_slug", ["slug"])
+      .index("by_category", ["category"])
+      .index("by_status", ["status"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    bookings: defineTable({
+      userId: v.string(),
+      serviceId: v.string(),
+      serviceName: v.string(),
+      date: v.string(),
+      time: v.string(),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("confirmed"),
+        v.literal("completed"),
+        v.literal("cancelled")
+      ),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    messages: defineTable({
+      userId: v.string(),
+      serviceId: v.string(),
+      content: v.string(),
+      createdAt: v.number(),
+    }).index("by_service", ["serviceId", "createdAt"])
   },
   {
     schemaValidation: false,
