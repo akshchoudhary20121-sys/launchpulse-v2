@@ -1,4 +1,4 @@
-// Simple localStorage-based data store
+// Simple localStorage-based data store with cross-tab sync
 // No database needed — everything saves in the browser
 
 const SERVICES_KEY = "launchpulse_services";
@@ -6,6 +6,36 @@ const BOOKINGS_KEY = "launchpulse_bookings";
 const MESSAGES_KEY = "launchpulse_messages";
 const REPLIES_KEY = "launchpulse_replies";
 const ADMIN_KEY = "launchpulse_admin";
+
+// ─── Custom Event System for Same-Tab Updates ───
+type StorageEventHandler = () => void;
+const listeners: Map<string, Set<StorageEventHandler>> = new Map();
+
+function emitChange(key: string): void {
+  const keyListeners = listeners.get(key);
+  if (keyListeners) {
+    keyListeners.forEach((fn) => fn());
+  }
+}
+
+export function onStorageChange(key: string, callback: StorageEventHandler): () => void {
+  if (!listeners.has(key)) {
+    listeners.set(key, new Set());
+  }
+  listeners.get(key)!.add(callback);
+  return () => {
+    listeners.get(key)?.delete(callback);
+  };
+}
+
+// Listen for storage events from other tabs
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key) {
+      emitChange(e.key);
+    }
+  });
+}
 
 // ─── Types ───
 export interface Service {
@@ -154,17 +184,25 @@ function generateId(): string {
 function getFromStorage<T>(key: string, defaultValue: T): T {
   try {
     const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaultValue;
-  } catch {
+    if (stored === null) {
+      return defaultValue;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error(`[Store] Error reading ${key}:`, e);
     return defaultValue;
   }
 }
 
 function setToStorage<T>(key: string, value: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const jsonValue = JSON.stringify(value);
+    localStorage.setItem(key, jsonValue);
+    console.log(`[Store] Saved to ${key}:`, value);
+    // Emit change event for same-tab listeners
+    emitChange(key);
   } catch (e) {
-    console.error("Storage error:", e);
+    console.error(`[Store] Error saving ${key}:`, e);
   }
 }
 
@@ -189,6 +227,7 @@ export function getServices(): Service[] {
 
   // Seed default services if empty
   if (services.length === 0) {
+    console.log("[Store] Seeding default services...");
     services = DEFAULT_SERVICES.map((s) => ({
       ...s,
       _id: generateId(),
@@ -227,6 +266,7 @@ export function searchServices(query: string, category?: string): Service[] {
 // ─── Bookings ───
 export function getBookings(userId?: string): Booking[] {
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
+  console.log(`[Store] getBookings(${userId || "all"}):`, bookings.length, "bookings");
   if (userId) {
     return bookings.filter((b) => b.userId === userId);
   }
@@ -234,10 +274,13 @@ export function getBookings(userId?: string): Booking[] {
 }
 
 export function getAllBookings(): Booking[] {
-  return getFromStorage<Booking[]>(BOOKINGS_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
+  const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
+  console.log("[Store] getAllBookings:", bookings.length, "bookings");
+  return bookings.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Booking {
+  console.log("[Store] Creating booking:", booking);
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
   const newBooking: Booking = {
     ...booking,
@@ -246,10 +289,12 @@ export function createBooking(booking: Omit<Booking, "_id" | "createdAt">): Book
   };
   bookings.push(newBooking);
   setToStorage(BOOKINGS_KEY, bookings);
+  console.log("[Store] Booking created. Total bookings:", bookings.length);
   return newBooking;
 }
 
 export function updateBookingStatus(bookingId: string, status: Booking["status"]): void {
+  console.log("[Store] Updating booking status:", bookingId, status);
   const bookings = getFromStorage<Booking[]>(BOOKINGS_KEY, []);
   const updated = bookings.map((b) =>
     b._id === bookingId ? { ...b, status } : b
@@ -264,6 +309,7 @@ export function cancelBooking(bookingId: string): void {
 // ─── Messages ───
 export function getMessages(serviceId?: string): Message[] {
   const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
+  console.log(`[Store] getMessages(${serviceId || "all"}):`, messages.length, "messages");
   if (serviceId) {
     return messages.filter((m) => m.serviceId === serviceId);
   }
@@ -271,10 +317,13 @@ export function getMessages(serviceId?: string): Message[] {
 }
 
 export function getAllMessages(): Message[] {
-  return getFromStorage<Message[]>(MESSAGES_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
+  const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
+  console.log("[Store] getAllMessages:", messages.length, "messages");
+  return messages.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Message {
+  console.log("[Store] Sending message:", message);
   const messages = getFromStorage<Message[]>(MESSAGES_KEY, []);
   const newMessage: Message = {
     ...message,
@@ -283,6 +332,7 @@ export function sendMessage(message: Omit<Message, "_id" | "createdAt">): Messag
   };
   messages.push(newMessage);
   setToStorage(MESSAGES_KEY, messages);
+  console.log("[Store] Message sent. Total messages:", messages.length);
   return newMessage;
 }
 
@@ -293,6 +343,7 @@ export function getReplies(messageId: string): Reply[] {
 }
 
 export function sendReply(messageId: string, sender: "admin" | "user", content: string): Reply {
+  console.log("[Store] Sending reply:", messageId, sender, content);
   const replies = getFromStorage<Reply[]>(REPLIES_KEY, []);
   const newReply: Reply = {
     _id: generateId(),
@@ -357,6 +408,16 @@ export function getActivityFeed(): Activity[] {
   });
 
   return activities.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// ─── Debug: Get all storage data ───
+export function debugStorage(): void {
+  console.log("[Store Debug] === All Storage Data ===");
+  console.log("Services:", getFromStorage(SERVICES_KEY, []));
+  console.log("Bookings:", getFromStorage(BOOKINGS_KEY, []));
+  console.log("Messages:", getFromStorage(MESSAGES_KEY, []));
+  console.log("Replies:", getFromStorage(REPLIES_KEY, []));
+  console.log("[Store Debug] =========================");
 }
 
 // ─── Clear Data ───

@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, LogOut, Calendar, MessageSquare, Settings,
@@ -10,7 +10,7 @@ import logo from "@/assets/logo.svg";
 import { Link } from "react-router";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { getBookings, cancelBooking, getMessages } from "@/lib/store";
+import { getBookings, cancelBooking, getMessages, onStorageChange } from "@/lib/store";
 
 const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
@@ -42,7 +42,26 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [bookings, setBookings] = useState(getBookings("local-user"));
-  const [messages] = useState(getMessages());
+  const [messages, setMessages] = useState(getMessages());
+
+  // Refresh data function
+  const refreshData = useCallback(() => {
+    setBookings(getBookings("local-user"));
+    setMessages(getMessages());
+  }, []);
+
+  // Auto-refresh every 3 seconds + listen for storage changes
+  useEffect(() => {
+    const interval = setInterval(refreshData, 3000);
+    const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
+    const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
+
+    return () => {
+      clearInterval(interval);
+      unsubBookings();
+      unsubMessages();
+    };
+  }, [refreshData]);
 
   const handleSignOut = async () => {
     await signOut();

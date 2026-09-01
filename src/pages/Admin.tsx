@@ -18,6 +18,8 @@ import {
   isAdminEmail,
   setAdmin,
   getServices,
+  onStorageChange,
+  debugStorage,
   type Booking,
   type Message,
   type Reply,
@@ -72,15 +74,32 @@ export default function Admin() {
     setLastRefresh(new Date());
   }, []);
 
-  // Auto-refresh every 3 seconds
+  // Auto-refresh every 2 seconds + listen for storage changes
   useEffect(() => {
     if (!isUserAdmin) return;
     
+    // Refresh immediately
+    refreshData();
+    
+    // Auto-refresh every 2 seconds
     const interval = setInterval(() => {
       refreshData();
-    }, 3000);
+    }, 2000);
 
-    return () => clearInterval(interval);
+    // Listen for storage changes from other tabs
+    const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
+    const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
+    const unsubReplies = onStorageChange("launchpulse_replies", refreshData);
+
+    // Debug: log storage state
+    debugStorage();
+
+    return () => {
+      clearInterval(interval);
+      unsubBookings();
+      unsubMessages();
+      unsubReplies();
+    };
   }, [isUserAdmin, refreshData]);
 
   // Redirect if not admin
