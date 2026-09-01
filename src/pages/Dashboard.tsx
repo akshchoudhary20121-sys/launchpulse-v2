@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, LogOut, Calendar, MessageSquare, Settings,
-  Clock, CheckCircle, XCircle, Package, ArrowRight,
+  Clock, CheckCircle, XCircle, Package, ArrowRight, Bell,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { Link } from "react-router";
@@ -41,17 +41,41 @@ export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [bookings, setBookings] = useState(getBookings("local-user"));
-  const [messages, setMessages] = useState(getMessages());
+  const [bookings, setBookings] = useState<ReturnType<typeof getBookings>>([]);
+  const [messages, setMessages] = useState<ReturnType<typeof getMessages>>([]);
+  const [upcomingBooking, setUpcomingBooking] = useState<ReturnType<typeof getBookings>[0] | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
+
+  // Use email as userId for consistency
+  const getUserId = () => user?.email || "";
 
   // Refresh data function
   const refreshData = useCallback(() => {
-    setBookings(getBookings("local-user"));
+    const userId = getUserId();
+    if (userId) {
+      const userBookings = getBookings(userId);
+      setBookings(userBookings);
+      
+      // Find upcoming confirmed booking
+      const now = new Date();
+      const upcoming = userBookings.find((b) => {
+        if (b.status !== "confirmed") return false;
+        const bookingDate = new Date(`${b.date}T${b.time.replace(" AM", ":00").replace(" PM", ":00")}`);
+        const diff = bookingDate.getTime() - now.getTime();
+        // Show if within 5 minutes (5 * 60 * 1000 ms)
+        return diff > 0 && diff < 5 * 60 * 1000;
+      });
+      setUpcomingBooking(upcoming || null);
+      if (upcoming) setShowNotification(true);
+    }
+    
+    // Get all messages (for demo purposes)
     setMessages(getMessages());
-  }, []);
+  }, [user?.email]);
 
   // Auto-refresh every 3 seconds + listen for storage changes
   useEffect(() => {
+    refreshData();
     const interval = setInterval(refreshData, 3000);
     const unsubBookings = onStorageChange("launchpulse_bookings", refreshData);
     const unsubMessages = onStorageChange("launchpulse_messages", refreshData);
@@ -70,7 +94,7 @@ export default function Dashboard() {
 
   const handleCancel = (id: string) => {
     cancelBooking(id);
-    setBookings(getBookings("local-user"));
+    refreshData();
   };
 
   const pendingBookings = bookings.filter((b) => b.status === "pending");
@@ -79,6 +103,31 @@ export default function Dashboard() {
 
   return (
     <div className="noise-overlay min-h-screen bg-background text-foreground">
+      {/* Upcoming Booking Notification */}
+      <AnimatePresence>
+        {showNotification && upcomingBooking && (
+          <motion.div
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -100 }}
+            className="fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-cyan-500/20">
+                <Bell className="h-5 w-5 text-cyan-400 animate-pulse" />
+              </div>
+              <div>
+                <p className="font-semibold text-cyan-400">Upcoming Session in 5 minutes!</p>
+                <p className="text-sm text-muted-foreground">{upcomingBooking.serviceName} at {upcomingBooking.time}</p>
+              </div>
+              <button onClick={() => setShowNotification(false)} className="text-muted-foreground hover:text-foreground">
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -125,9 +174,10 @@ export default function Dashboard() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-cyan-400">
-              Dashboard <span className="text-green-500/60">● Data saved locally</span>
+              Dashboard
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">Welcome back{user?.name ? `, ${user.name}` : ""}</h1>
+            <p className="text-xs text-muted-foreground mt-1">{user?.email}</p>
           </div>
           <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110">
             Get a Quote <ArrowRight className="h-4 w-4" />
@@ -177,6 +227,21 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Upcoming Session */}
+                {upcomingBooking && (
+                  <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-cyan-500/20">
+                        <Bell className="h-5 w-5 text-cyan-400 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-cyan-400">Upcoming Session!</p>
+                        <p className="text-sm text-muted-foreground">{upcomingBooking.serviceName} at {upcomingBooking.time}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick Actions */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Link to="/catalog" className="gradient-border group flex items-center gap-4 rounded-2xl border border-border/40 bg-card/30 p-5 backdrop-blur-sm transition-all hover:bg-card/50">
@@ -213,7 +278,7 @@ export default function Dashboard() {
                     <div className="rounded-2xl border border-border/40 bg-card/30 p-8 text-center">
                       <Package className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-medium">No bookings yet</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Browse the catalog to book your first session.</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Browse the catalog to book your first consultation.</p>
                       <Link to="/catalog" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
                         Browse Catalog <ArrowRight className="h-3 w-3" />
                       </Link>
@@ -248,7 +313,7 @@ export default function Dashboard() {
                   <div className="rounded-2xl border border-border/40 bg-card/30 p-12 text-center">
                     <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                     <p className="text-sm font-medium">No bookings yet</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Pick a service from the catalog and schedule a session.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Pick a service from the catalog and schedule a consultation.</p>
                     <Link to="/catalog" className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">Browse Catalog <ArrowRight className="h-3 w-3" /></Link>
                   </div>
                 ) : (

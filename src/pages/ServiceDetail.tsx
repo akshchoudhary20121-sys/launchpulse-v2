@@ -36,25 +36,33 @@ export default function ServiceDetail() {
   const [showEmailPrompt, setShowEmailPrompt] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [pendingAction, setPendingAction] = useState<"book" | "message" | null>(null);
+
+  // Use email as userId for consistency across all pages
+  const getUserId = () => user?.email || "anonymous-" + Date.now();
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  const ensureEmail = (action: "book" | "message"): boolean => {
+    if (!user?.email) {
+      setPendingAction(action);
+      setShowEmailPrompt(true);
+      return false;
+    }
+    return true;
+  };
+
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!service) return;
-
-    // Check if user has email
-    if (!user?.email) {
-      setShowEmailPrompt(true);
-      return;
-    }
+    if (!ensureEmail("book")) return;
 
     createBooking({
-      userId: user._id,
-      userEmail: user.email,
-      userName: user.name || user.email.split("@")[0],
+      userId: getUserId(),
+      userEmail: user!.email!,
+      userName: user!.name || user!.email!.split("@")[0],
       serviceId: service.slug,
       serviceName: service.name,
       date: bookDate,
@@ -72,46 +80,23 @@ export default function ServiceDetail() {
       return;
     }
 
-    // Update user with email (in real app, this would update the auth state)
-    // For now, we'll store it and use it
+    // Save email to user
     const currentUser = JSON.parse(localStorage.getItem("launchpulse_user") || "{}");
     currentUser.email = emailInput;
     localStorage.setItem("launchpulse_user", JSON.stringify(currentUser));
-
-    setShowEmailPrompt(false);
-    setEmailError("");
-
-    // Now create the booking
-    if (service) {
-      createBooking({
-        userId: currentUser._id,
-        userEmail: emailInput,
-        userName: currentUser.name || emailInput.split("@")[0],
-        serviceId: service.slug,
-        serviceName: service.name,
-        date: bookDate,
-        time: bookTime,
-        status: "pending",
-        notes: bookNotes || undefined,
-      });
-      setBookingSubmitted(true);
-    }
+    // Force page reload to pick up new email
+    window.location.reload();
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !slug) return;
-
-    // Check if user has email
-    if (!user?.email) {
-      setShowEmailPrompt(true);
-      return;
-    }
+    if (!ensureEmail("message")) return;
 
     sendMessage({
-      userId: user._id,
-      userEmail: user.email,
-      userName: user.name || user.email.split("@")[0],
+      userId: getUserId(),
+      userEmail: user!.email!,
+      userName: user!.name || user!.email!.split("@")[0],
       serviceId: slug,
       content: messageText.trim(),
     });
@@ -195,6 +180,13 @@ export default function ServiceDetail() {
               </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">{service.name}</h1>
               <p className="mt-5 text-muted-foreground leading-relaxed text-lg">{service.longDescription}</p>
+              
+              {/* Demo notice */}
+              <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <p className="text-xs text-yellow-400">
+                  <strong>Demo/Consultation:</strong> This booking is for a free consultation where we&apos;ll explain all features, show demos, and discuss how this service can help your project. No payment required for the consultation.
+                </p>
+              </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
@@ -258,7 +250,7 @@ export default function ServiceDetail() {
                 ))}
               </div>
               <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
-                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder={user?.email ? "Write a message..." : "Enter email to send messages..."}
+                <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder={user?.email ? "Write a message..." : "Enter email first to send messages..."}
                   className="flex-1 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none backdrop-blur-sm transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
                 <button type="submit" disabled={!messageText.trim()} className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white transition-all hover:brightness-110 disabled:opacity-50">
                   <Send className="h-4 w-4" />
@@ -284,7 +276,7 @@ export default function ServiceDetail() {
                     <Calendar className="h-6 w-6 text-cyan-400" />
                   </div>
                   <p className="text-sm font-semibold">Booking submitted!</p>
-                  <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your session within the hour.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">We&apos;ll confirm your consultation within the hour.</p>
                   <Link to="/dashboard" className="mt-4 text-xs text-cyan-400 hover:text-cyan-300">View in dashboard →</Link>
                 </motion.div>
               ) : (
@@ -316,7 +308,7 @@ export default function ServiceDetail() {
                   </div>
                   <button type="submit" disabled={!bookDate || !bookTime}
                     className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40 hover:brightness-110 disabled:opacity-50">
-                    <Calendar className="h-4 w-4" /> Book Session
+                    <Calendar className="h-4 w-4" /> Book Free Consultation
                   </button>
                   {!user?.email && (
                     <p className="text-[10px] text-muted-foreground text-center">Email required for booking</p>
@@ -361,7 +353,7 @@ export default function ServiceDetail() {
               </div>
               <div>
                 <h3 className="font-semibold">Email Required</h3>
-                <p className="text-xs text-muted-foreground">Enter your email to continue</p>
+                <p className="text-xs text-muted-foreground">Enter your email to {pendingAction === "book" ? "book a session" : "send a message"}</p>
               </div>
             </div>
             <div className="space-y-4">
@@ -380,7 +372,7 @@ export default function ServiceDetail() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => { setShowEmailPrompt(false); setEmailError(""); }}
+                  onClick={() => { setShowEmailPrompt(false); setEmailError(""); setPendingAction(null); }}
                   className="flex-1 rounded-xl border border-border/50 bg-card/30 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-card/50"
                 >
                   Cancel
