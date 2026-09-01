@@ -13,7 +13,7 @@ import { Link } from "react-router";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
-const DISCORD_URL = "https://discord.gg/yourserver";
+const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
 type Tab = "overview" | "bookings" | "messages" | "settings";
 

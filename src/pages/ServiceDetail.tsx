@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
-const DISCORD_URL = "https://discord.gg/yourserver";
+const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();

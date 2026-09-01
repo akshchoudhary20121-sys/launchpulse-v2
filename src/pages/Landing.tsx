@@ -30,7 +30,7 @@ import {
 import { Menu } from "lucide-react";
 import { Link } from "react-router";
 
-const DISCORD_URL = "https://discord.gg/yourserver";
+const DISCORD_URL = "https://discord.gg/2srHufQ8pj";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
